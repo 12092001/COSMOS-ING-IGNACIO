@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cosmos Observatorio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Spectral:ital,wght@0,300;0,400;0,500;1,300&display=swap">
+<style>
+/* Layout: un escenario azul de observatorio (planeta + gran COSMOS de fondo) → expediente del astro en pestañas con ficha técnica fija → atlas de constelaciones. Un solo look oscuro, a propósito. */
+:root{
+  --void:#060a1d;        /* cielo profundo */
+  --deep:#16286a;        /* azul de la cúpula */
+  --panel:rgba(14,22,58,.72);
+  --ink:#ece6d6;         /* luz de estrella cálida */
+  --muted:#9aa3c4;
+  --faint:rgba(236,230,214,.13);
+  --gold:#d9b872;        /* brillo dorado, con mesura */
+  --cyan:#8fb8ff;
+  --f-display:"Cormorant Garamond","Cormorant",Garamond,"Times New Roman",serif;
+  --f-caps:"Cinzel","Trajan Pro",Georgia,serif;
+  --f-body:"Spectral",Georgia,"Times New Roman",serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;color:var(--ink);font:300 16px/1.65 var(--f-body);
+  background:var(--void) radial-gradient(120% 70% at 50% 0%,var(--deep) 0%,#0c1647 45%,var(--void) 85%) no-repeat;
+  background-attachment:fixed;overflow-x:hidden}
+#stars{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.wrap{position:relative;z-index:1;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.caps{font:500 10.5px/1.4 var(--f-caps);letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+
+/* ===== Barra superior ===== */
+.top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding-block:18px 8px;max-width:1360px;margin:0 auto}
+.top .l b{display:block;color:var(--ink);font-weight:600}
+.top .r{text-align:right}
+.sel{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center}
+.sel .lbl{margin-right:8px}
+.sel button{min-width:30px;height:30px;padding:0 6px;border:1px solid var(--faint);background:rgba(6,10,29,.35);font:500 11px var(--f-caps);letter-spacing:.06em;color:var(--muted);cursor:pointer;transition:color .3s,border-color .3s,background .3s,transform .3s}
+.sel button:hover{color:var(--ink);border-color:rgba(236,230,214,.45);transform:translateY(-1px)}
+.sel button.on{color:var(--void);background:var(--ink);border-color:var(--ink)}
+.sel button .t{display:none}
+@media (max-width:900px){.top{grid-template-columns:1fr;text-align:center}.top .l,.top .r{display:none}}
+
+/* ===== Escenario ===== */
+.stage{position:relative;max-width:1360px;margin:0 auto;min-height:min(720px,86vh);display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:center;gap:20px;padding-block:10px 30px}
+.water{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;overflow:hidden;z-index:0}
+.water span{font:300 clamp(80px,17vw,260px)/1 var(--f-display);letter-spacing:.32em;margin-right:-.32em;color:transparent;-webkit-text-stroke:1px rgba(143,184,255,.22);text-shadow:0 0 60px rgba(143,184,255,.08);white-space:nowrap;user-select:none}
+.planet-box{position:relative;z-index:1;display:grid;place-items:center;aspect-ratio:1;width:100%;max-width:640px;justify-self:center}
+#planet{width:100%;height:100%;cursor:grab;touch-action:pan-y;transition:opacity .45s,transform .7s cubic-bezier(.2,.8,.2,1)}
+#planet.out{opacity:0;transform:scale(.86)}
+#planet.drag{cursor:grabbing}
+.hint{position:absolute;bottom:4%;left:50%;transform:translateX(-50%);white-space:nowrap;opacity:.7}
+.txt{position:relative;z-index:2;max-width:540px;transition:opacity .45s,transform .6s}
+.txt.out{opacity:0;transform:translateY(10px)}
+.eyebrow{display:flex;align-items:center;gap:12px}
+.eyebrow i{flex:none;width:34px;height:1px;background:var(--gold)}
+h1{margin:6px 0 0;font:400 clamp(52px,7.4vw,112px)/.95 var(--f-display);letter-spacing:.04em;text-transform:uppercase;color:#fff4dc;
+  text-shadow:0 0 18px rgba(217,184,114,.55),0 0 50px rgba(217,184,114,.25);text-wrap:balance}
+.lat{font:italic 400 22px var(--f-display);color:var(--gold);margin-top:6px}
+.lead{margin:16px 0 0;font-size:16.5px;color:#d9d3c3;max-width:52ch}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:24px;padding-top:16px;border-top:1px solid var(--faint)}
+.facts div{min-width:0}
+.facts span{display:block;font:500 9.5px var(--f-caps);letter-spacing:.22em;color:var(--muted);text-transform:uppercase}
+.facts b{display:block;font:400 19px/1.25 var(--f-display);font-variant-numeric:lining-nums tabular-nums;margin-top:4px;color:var(--ink)}
+.go{display:inline-flex;gap:10px;align-items:center;margin-top:26px;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--gold);padding-bottom:3px;font:500 11px var(--f-caps);letter-spacing:.24em;text-transform:uppercase}
+.go:hover{color:var(--gold)}
+.vert{position:absolute;top:50%;font:500 9.5px var(--f-caps);letter-spacing:.32em;text-transform:uppercase;color:var(--muted);white-space:nowrap;z-index:2}
+.vert.l{left:-6px;transform:translateY(-50%) rotate(-90deg);transform-origin:left center;left:4px}
+.vert.r{right:4px;transform:translateY(-50%) rotate(90deg);transform-origin:right center}
+.vert b{color:var(--ink);font-weight:500}
+.foot-stage{position:relative;z-index:2;max-width:1360px;margin:0 auto;display:grid;grid-template-columns:auto 1fr auto;align-items:end;gap:20px;padding-bottom:26px}
+#orbit{width:210px;height:210px;cursor:pointer}
+.scroll{justify-self:center;text-align:center}
+.scroll i{display:block;width:1px;height:34px;margin:8px auto 0;background:linear-gradient(var(--gold),transparent);animation:drip 2.4s ease-in-out infinite}
+@keyframes drip{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+.coord{text-align:right}
+.coord b{display:block;font:400 15px var(--f-display);color:var(--ink);letter-spacing:.06em}
+@media (max-width:900px){
+  .stage{grid-template-columns:1fr;min-height:0;padding-top:0}
+  .planet-box{max-width:420px}
+  .txt{margin:0 auto;text-align:center}
+  .eyebrow{justify-content:center}
+  .facts{grid-template-columns:repeat(2,minmax(0,1fr));text-align:left}
+  .vert{display:none}
+  .foot-stage{grid-template-columns:1fr;justify-items:center}
+  .coord{text-align:center}
+}
+
+/* ===== Expediente ===== */
+.dossier{max-width:1240px;margin:0 auto;padding-block:40px 30px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:40px;align-items:start}
+@media (max-width:980px){.dossier{grid-template-columns:1fr}}
+.sec-title{grid-column:1/-1;display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--faint);padding-bottom:14px}
+.sec-title h2{margin:0;font:400 clamp(32px,4vw,48px)/1 var(--f-display);letter-spacing:.03em}
+.sec-title h2 em{color:var(--gold);font-style:italic}
+.tabs{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:22px;border-bottom:1px solid var(--faint)}
+.tabs button{border:0;background:none;padding:12px 14px 13px;font:500 10.5px var(--f-caps);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);cursor:pointer;position:relative}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{color:var(--ink)}
+.tabs button.on::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:1px;background:var(--gold)}
+.panel{min-height:380px;animation:fade .5s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+.panel h3{font:400 30px/1.15 var(--f-display);margin:0 0 12px;color:#fff4dc;text-wrap:balance}
+.panel p{margin:0 0 14px;max-width:68ch;color:#ddd7c8}
+.panel p.big:first-letter{float:left;font:400 64px/.8 var(--f-display);color:var(--gold);margin:6px 10px 0 0}
+.layers{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:10px;max-width:68ch}
+.layers li{display:grid;grid-template-columns:18px 1fr;gap:14px;align-items:start}
+.layers li i{width:14px;height:14px;border-radius:50%;margin-top:6px;background:var(--c);box-shadow:0 0 12px var(--c)}
+.layers b{font:500 11px var(--f-caps);letter-spacing:.18em;text-transform:uppercase;color:var(--ink);display:block}
+.layers span{color:#cfc9ba;font-size:15px}
+.moons{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:16px}
+.moon{border:1px solid var(--faint);padding:14px 16px;background:rgba(6,10,29,.35)}
+.moon b{font:400 22px var(--f-display);color:#fff4dc}
+.moon small{display:block;font:500 9.5px var(--f-caps);letter-spacing:.2em;color:var(--gold);margin:2px 0 6px;text-transform:uppercase}
+.moon p{margin:0;font-size:14.5px;color:#cfc9ba}
+.timeline{list-style:none;margin:16px 0 0;padding:0 0 0 22px;border-left:1px solid var(--faint);max-width:68ch}
+.timeline li{position:relative;padding:0 0 18px}
+.timeline li::before{content:"";position:absolute;left:-26.5px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--void);border:1px solid var(--gold)}
+.timeline li.now::before{background:var(--gold);box-shadow:0 0 10px var(--gold)}
+.timeline b{font:400 22px var(--f-display);color:var(--gold);margin-right:10px;font-variant-numeric:lining-nums}
+.timeline strong{font-weight:500;color:var(--ink)}
+.timeline span{display:block;color:#cfc9ba;font-size:15px}
+.curios{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:14px;max-width:70ch;counter-reset:c}
+.curios li{display:grid;grid-template-columns:44px 1fr;gap:12px;color:#ddd7c8}
+.curios li::before{counter-increment:c;content:counter(c,upper-roman);font:400 22px var(--f-display);color:var(--gold);text-align:right}
+
+/* Ficha lateral */
+aside{position:sticky;top:20px;display:grid;gap:18px}
+.card{border:1px solid var(--faint);background:var(--panel);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:18px 20px}
+.card h4{margin:0 0 10px;font:500 10.5px var(--f-caps);letter-spacing:.24em;text-transform:uppercase;color:var(--gold)}
+.ficha{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:0;font-size:14px}
+.ficha dt{color:var(--muted)}
+.ficha dd{margin:0;text-align:right;font-variant-numeric:lining-nums tabular-nums;color:var(--ink)}
+.peso label{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+.peso .row{display:flex;gap:8px;align-items:center}
+.peso input{width:100%;background:rgba(6,10,29,.6);border:1px solid var(--faint);color:var(--ink);font:400 22px var(--f-display);padding:6px 10px;font-variant-numeric:lining-nums}
+.peso input:focus{outline:none;border-color:var(--gold)}
+.peso .res{margin-top:12px;font:400 40px/1 var(--f-display);color:#fff4dc;font-variant-numeric:lining-nums}
+.peso .res small{font:300 14px var(--f-body);color:var(--muted);margin-left:6px}
+.peso p{margin:8px 0 0;font-size:13.5px;color:var(--muted)}
+#size{width:100%;height:150px;display:block}
+.size-cap{font-size:13.5px;color:var(--muted);margin:6px 0 0}
+.luz{font-size:14px;color:#ddd7c8}
+.luz b{display:block;font:400 26px var(--f-display);color:#fff4dc;font-variant-numeric:lining-nums}
+
+/* ===== Atlas ===== */
+.atlas{max-width:1240px;margin:0 auto;padding-block:50px 30px}
+.atlas .sec-title{margin-bottom:20px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.chips button{border:1px solid var(--faint);background:rgba(6,10,29,.35);padding:7px 14px;font:500 10.5px var(--f-caps);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);cursor:pointer;transition:all .25s}
+.chips button:hover{color:var(--ink);border-color:rgba(236,230,214,.4)}
+.chips button.on{color:var(--void);background:var(--ink);border-color:var(--ink)}
+.sky{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:34px;align-items:start}
+@media (max-width:900px){.sky{grid-template-columns:1fr}}
+.chart-box{position:relative;border:1px solid var(--faint);background:radial-gradient(80% 80% at 50% 40%,rgba(22,40,106,.55),rgba(6,10,29,.8));aspect-ratio:4/3;max-width:100%}
+#chart{width:100%;height:100%;display:block}
+.chart-box .tip{position:absolute;pointer-events:none;background:rgba(6,10,29,.92);border:1px solid var(--faint);padding:6px 10px;font-size:13px;white-space:nowrap;transform:translate(-50%,-130%);opacity:0;transition:opacity .2s}
+.chart-box .tip b{font:400 17px var(--f-display);color:#fff4dc;display:block}
+.chart-box .legend{position:absolute;left:12px;bottom:10px}
+.chart-box .compass{position:absolute;right:12px;top:10px;text-align:right}
+.const h3{margin:0;font:400 44px/1 var(--f-display);color:#fff4dc}
+.const .lat{font-size:20px}
+.const p{color:#ddd7c8;max-width:62ch}
+.stars-t{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+.stars-t th{text-align:left;font:500 9.5px var(--f-caps);letter-spacing:.2em;color:var(--muted);text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--faint)}
+.stars-t td{padding:7px 8px;border-bottom:1px solid var(--faint);font-variant-numeric:lining-nums tabular-nums}
+.stars-t td:first-child{font-family:var(--f-display);font-size:17px;color:#fff4dc}
+.stars-t tr:hover td{background:rgba(143,184,255,.06)}
+.tbl{overflow-x:auto}
+.meta{display:flex;gap:22px;flex-wrap:wrap;margin:14px 0}
+.meta div span{display:block}
+.meta div b{font:400 18px var(--f-display);color:var(--ink)}
+
+footer{max-width:1240px;margin:0 auto;padding-block:30px 40px;border-top:1px solid var(--faint);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{color:var(--muted)}
+footer a:hover{color:var(--gold)}
+
+/* ===== Intro ===== */
+#intro{position:fixed;inset:0;z-index:100;background:var(--void);display:grid;place-items:center;transition:opacity 1.1s ease,visibility 1.1s}
+#intro.gone{opacity:0;visibility:hidden}
+#warp{position:absolute;inset:0;width:100%;height:100%}
+.in-t{position:relative;text-align:center;display:grid;gap:14px;justify-items:center;padding:0 20px}
+.in-t b{font:300 clamp(54px,12vw,150px)/1 var(--f-display);letter-spacing:.5em;margin-right:-.5em;color:#fff4dc;text-shadow:0 0 30px rgba(217,184,114,.5);animation:spread 2.6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes spread{from{letter-spacing:1.2em;opacity:0;filter:blur(8px)}to{letter-spacing:.5em;opacity:1;filter:none}}
+.in-t button{margin-top:10px;border:1px solid rgba(236,230,214,.4);background:transparent;padding:10px 26px;font:500 11px var(--f-caps);letter-spacing:.3em;text-transform:uppercase;color:var(--ink);cursor:pointer;transition:all .3s}
+.in-t button:hover{background:var(--ink);color:var(--void)}
+
+/* ===== Navegación de secciones ===== */
+.secnav{max-width:1360px;margin:0 auto;display:flex;justify-content:center;gap:4px 22px;flex-wrap:wrap;padding-block:6px 4px}
+.secnav a{color:var(--muted);text-decoration:none;padding:4px 0;border-bottom:1px solid transparent;transition:color .25s,border-color .25s}
+.secnav a:hover{color:var(--ink);border-color:var(--gold)}
+
+/* ===== Modo superficie / interior y datos curiosos ===== */
+.mode{position:absolute;top:4%;left:50%;transform:translateX(-50%);display:flex;border:1px solid var(--faint);background:rgba(6,10,29,.5);z-index:3}
+.mode button{border:0;background:none;padding:7px 14px;font:500 9.5px var(--f-caps);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+.mode button.on{background:var(--ink);color:var(--void)}
+.capas{position:absolute;right:0;bottom:12%;list-style:none;margin:0;padding:12px 14px;background:rgba(6,10,29,.75);border:1px solid var(--faint);max-width:220px;z-index:3;display:grid;gap:6px;font-size:13px;counter-reset:k}
+.capas li{display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:center;color:#ddd7c8}
+.capas li::before{counter-increment:k;content:counter(k);display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--c);color:#0b1030;font:600 11px var(--f-body)}
+.capas small{grid-column:1/-1;color:var(--muted);font-size:11px}
+.ticker{margin-top:22px;padding:12px 14px;border-left:1px solid var(--gold);background:rgba(6,10,29,.35);min-height:72px}
+.ticker p{margin:4px 0 0;font-size:14.5px;color:#ddd7c8;transition:opacity .5s}
+.ticker p.fade{opacity:0}
+@media (max-width:900px){.capas{position:static;max-width:none;margin-top:8px}.ticker{text-align:left}}
+
+/* ===== Bloques ===== */
+.block{max-width:1240px;margin:0 auto;padding-block:56px 10px}
+.block .sec-title{margin-bottom:22px}
+.block .intro-p{margin:-8px 0 20px;color:#cfc9ba;max-width:70ch}
+.pbtn{border:1px solid var(--faint);background:rgba(6,10,29,.55);color:var(--ink);min-width:36px;height:34px;padding:0 12px;font:500 10.5px var(--f-caps);letter-spacing:.16em;text-transform:uppercase;cursor:pointer;transition:all .25s}
+.pbtn:hover{border-color:var(--ink)}
+.pbtn.on{background:var(--ink);color:var(--void)}
+
+/* Sistema solar vivo */
+.orrery{position:relative;border:1px solid var(--faint);background:radial-gradient(60% 60% at 50% 50%,rgba(22,40,106,.5),rgba(6,10,29,.85));height:clamp(420px,62vw,640px);overflow:hidden}
+#orr{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#orr.drag{cursor:grabbing}
+@media (pointer:coarse){#orr{touch-action:pan-y}}
+.o-ctrl{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.o-ctrl .sp{flex:1}
+.o-date{position:absolute;left:16px;top:14px}
+.o-date b{display:block;font:400 26px var(--f-display);color:#fff4dc;font-variant-numeric:lining-nums}
+.o-card{position:absolute;right:12px;top:12px;width:min(270px,calc(100% - 24px));background:rgba(6,10,29,.88);border:1px solid var(--faint);padding:14px 16px;transition:opacity .3s,transform .3s}
+.o-card.off{opacity:0;transform:translateY(-6px);pointer-events:none}
+.o-card h4{margin:0;font:400 28px var(--f-display);color:#fff4dc}
+.o-card dl{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;margin:8px 0 12px;font-size:13.5px}
+.o-card dt{color:var(--muted)} .o-card dd{margin:0;text-align:right;font-variant-numeric:lining-nums tabular-nums}
+@media (max-width:620px){.orrery{height:auto}#orr{height:400px}.o-ctrl{position:static;padding:10px;border-top:1px solid var(--faint)}.o-card{position:static;width:auto;margin:0 10px 10px}.o-card.off{display:none}.o-date b{font-size:20px}}
+
+/* Comparador */
+.cmp-sel{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+.cmp-sel select{background:rgba(6,10,29,.7);border:1px solid var(--faint);color:var(--ink);font:400 22px var(--f-display);padding:6px 12px;min-width:170px}
+.cmp-sel .vs{font:italic 400 26px var(--f-display);color:var(--gold)}
+.cmp{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:30px;align-items:start}
+@media (max-width:820px){.cmp{grid-template-columns:1fr}}
+#cmpViz{width:100%;aspect-ratio:1;max-width:260px;display:block;margin:0 auto}
+.metric{display:grid;grid-template-columns:150px minmax(0,1fr);gap:4px 16px;padding:10px 0;border-bottom:1px solid var(--faint)}
+.metric>span{font:500 10px var(--f-caps);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.mbars{display:grid;gap:5px;min-width:0}
+.mbar{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:10px;align-items:center;font-size:13.5px}
+.mbar i{display:block;height:8px;background:var(--c);width:var(--w);transition:width .8s cubic-bezier(.22,1,.36,1);box-shadow:0 0 10px var(--c);min-width:2px}
+.mbar b{font-weight:400;text-align:right;font-variant-numeric:lining-nums tabular-nums;white-space:nowrap}
+.metric em{grid-column:2;font-style:italic;font-family:var(--f-display);font-size:16px;color:var(--gold)}
+@media (max-width:560px){.metric{grid-template-columns:1fr}.metric em{grid-column:1}}
+
+/* Edad */
+.edad-top{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+.edad-top label{font:400 20px var(--f-display)}
+.edad-top input{background:rgba(6,10,29,.7);border:1px solid var(--faint);color:var(--ink);font:400 18px var(--f-body);padding:6px 10px;color-scheme:dark}
+.edad-top input:focus{outline:none;border-color:var(--gold)}
+.edades{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.edad{border:1px solid var(--faint);background:rgba(6,10,29,.4);padding:14px 16px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .3s,transform .3s;text-align:left;color:inherit;font:inherit}
+.edad:hover{border-color:rgba(236,230,214,.45);transform:translateY(-2px)}
+.edad::after{content:"";position:absolute;right:-26px;top:-26px;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle at 35% 35%,var(--c),transparent 70%);opacity:.55}
+.edad span{font:500 9.5px var(--f-caps);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.edad b{display:block;font:400 40px/1.1 var(--f-display);color:#fff4dc;font-variant-numeric:lining-nums;margin:2px 0}
+.edad b small{font-size:16px;color:var(--muted)}
+.edad p{margin:0;font-size:13px;color:#cfc9ba}
+.edad.hot{border-color:var(--gold)}
+.edad.hot p{color:var(--gold)}
+.vida{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:16px}
+.vida div{padding:12px 0;border-top:1px solid var(--faint)}
+.vida b{display:block;font:400 26px var(--f-display);color:#fff4dc;font-variant-numeric:lining-nums}
+.vida span{font-size:13.5px;color:var(--muted)}
+
+/* Viaje */
+.via{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:30px;align-items:start}
+@media (max-width:820px){.via{grid-template-columns:1fr}}
+.via .chips{margin:8px 0 18px}
+.via-out b.t{display:block;font:400 clamp(40px,5vw,60px)/1 var(--f-display);color:#fff4dc;font-variant-numeric:lining-nums}
+.via-out p{color:#cfc9ba;margin:10px 0 0}
+.via-out dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:16px 0 0;font-size:14px}
+.via-out dt{color:var(--muted)} .via-out dd{margin:0;text-align:right;font-variant-numeric:lining-nums}
+.vtrack{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;margin-top:26px}
+.vtrack .line{position:relative;height:1px;background:linear-gradient(90deg,var(--cyan),var(--gold))}
+.vtrack .line i{position:absolute;top:-6px;left:0;width:12px;height:12px;border-radius:50%;background:#fff4dc;box-shadow:0 0 14px #fff4dc,0 0 30px var(--gold)}
+.vtrack .line i.go{animation:fly var(--dur,3s) cubic-bezier(.45,.05,.55,.95) forwards}
+@keyframes fly{from{left:0}to{left:calc(100% - 12px)}}
+
+/* Quiz */
+.quiz{border:1px solid var(--faint);background:rgba(6,10,29,.45);padding:clamp(18px,3vw,32px);max-width:860px}
+.qbar{height:2px;background:var(--faint);margin-bottom:18px}
+.qbar i{display:block;height:100%;background:var(--gold);transition:width .5s}
+.quiz h3{font:400 clamp(26px,3vw,34px)/1.2 var(--f-display);margin:6px 0 18px;color:#fff4dc;text-wrap:balance}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.opts{grid-template-columns:1fr}}
+.opts button{display:flex;gap:12px;align-items:center;text-align:left;border:1px solid var(--faint);background:rgba(6,10,29,.5);padding:14px 16px;font:400 20px var(--f-display);color:var(--ink);cursor:pointer;transition:all .25s}
+.opts button:hover:not([disabled]){border-color:var(--ink);transform:translateY(-1px)}
+.opts button i{width:16px;height:16px;border-radius:50%;background:var(--c);flex:none;box-shadow:0 0 10px var(--c)}
+.opts button.ok{border-color:#7fd4a8;background:rgba(127,212,168,.12)}
+.opts button.bad{border-color:#ff8a7a;background:rgba(255,138,122,.1)}
+.opts button[disabled]{cursor:default}
+.qexp{margin:16px 0 0;padding:12px 14px;border-left:1px solid var(--gold);color:#ddd7c8;animation:fade .4s both}
+.qfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap}
+.qend{text-align:center;padding:10px 0}
+.qend b{display:block;font:300 90px/1 var(--f-display);color:#fff4dc}
+.qend .rank{font:italic 400 30px var(--f-display);color:var(--gold)}
+
+/* Fase lunar */
+.fase{display:flex;gap:16px;align-items:center}
+#faseC{width:84px;height:84px;flex:none}
+.fase b{display:block;font:400 22px var(--f-display);color:#fff4dc}
+.fase span{font-size:13.5px;color:var(--muted)}
+.chips button .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#7fd4a8;margin-left:7px;vertical-align:2px;box-shadow:0 0 8px #7fd4a8}
+.chips button.on .dot{background:#2c7a52}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<div id="intro"><canvas id="warp" aria-hidden="true"></canvas><div class="in-t"><span class="caps">Observatorio interactivo</span><b>COSMOS</b><span class="caps">Un viaje por el sistema solar y las estrellas</span><button type="button" id="inBtn">Entrar</button></div></div>
+<canvas id="stars" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header class="top">
+    <div class="l caps"><b>Observatorio Cosmos</b>Atlas del sistema solar</div>
+    <nav class="sel" id="sel" aria-label="Elegir astro"><span class="caps lbl">Astro</span></nav>
+    <div class="r caps"><b style="color:var(--ink);font-weight:600;display:block">Est. hace 4,600 Ma</b>Más allá del horizonte</div>
+  </header>
+  <nav class="secnav caps" aria-label="Secciones"><a href="#top">Astro</a><a href="#expediente">Expediente</a><a href="#sistema">Sistema solar</a><a href="#comparar">Comparar</a><a href="#edad">Tu edad</a><a href="#viaje">Viaje</a><a href="#quiz">Desafío</a><a href="#atlas">Constelaciones</a></nav>
+
+  <section class="stage" id="top" aria-label="Astro seleccionado">
+    <div class="water" aria-hidden="true"><span>COSMOS</span></div>
+    <div class="vert l" id="vertL"></div>
+    <div class="planet-box">
+      <canvas id="planet" role="img" aria-label="Astro girando"></canvas>
+      <span class="hint caps">Arrastra para girarlo</span>
+      <div class="mode" role="group" aria-label="Vista"><button type="button" class="on" data-mode="sup">Superficie</button><button type="button" data-mode="int">Interior</button></div>
+      <ol class="capas" id="capas" hidden></ol>
+    </div>
+    <div class="txt" id="txt"></div>
+    <div class="vert r" id="vertR"></div>
+  </section>
+
+  <div class="foot-stage">
+    <div><canvas id="orbit" aria-label="Mapa de órbitas: toca un planeta"></canvas><div class="caps" style="margin-top:4px">Órbitas · toca un planeta</div></div>
+    <a class="scroll caps" href="#expediente" style="text-decoration:none">Desliza para investigar<i></i></a>
+    <div class="coord caps" id="coord"></div>
+  </div>
+
+  <section class="dossier" id="expediente">
+    <div class="sec-title"><h2 id="dosTitle">Expediente</h2><span class="caps" id="dosSub"></span></div>
+    <div style="min-width:0">
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <div class="panel" id="panel" role="tabpanel"></div>
+    </div>
+    <aside>
+      <div class="card"><h4>Ficha técnica</h4><dl class="ficha" id="ficha"></dl></div>
+      <div class="card peso"><h4>Tu peso allá</h4><label for="kg">Lo que pesas en la Tierra (kg)</label>
+        <div class="row"><input id="kg" type="number" inputmode="decimal" min="1" max="500" value="70"></div>
+        <div class="res" id="pesoRes"></div><p id="pesoTxt"></p></div>
+      <div class="card"><h4>Tamaño junto a la Tierra</h4><canvas id="size" aria-label="Comparación de tamaño"></canvas><p class="size-cap" id="sizeCap"></p></div>
+      <div class="card luz"><h4>La luz tarda</h4><div id="luz"></div></div>
+      <div class="card" id="faseCard" hidden><h4>La Luna hoy</h4><div class="fase"><canvas id="faseC" aria-label="Fase lunar de hoy"></canvas><div id="faseT"></div></div></div>
+    </aside>
+  </section>
+
+  <section class="block" id="sistema">
+    <div class="sec-title"><h2>El sistema solar <em>en movimiento</em></h2><span class="caps">Posiciones aproximadas para la fecha mostrada</span></div>
+    <p class="intro-p">Así están los planetas hoy alrededor del Sol. Adelanta el tiempo, acerca la vista y toca cualquier planeta para ver qué tan lejos está de nosotros en esa fecha.</p>
+    <div class="orrery"><canvas id="orr" aria-label="Sistema solar animado"></canvas>
+      <div class="o-date"><span class="caps">Fecha simulada</span><b id="oDate">—</b></div>
+      <div class="o-card off" id="oCard"></div>
+      <div class="o-ctrl"><button type="button" class="pbtn" id="oPlay" aria-label="Pausar o reanudar">❚❚</button><span class="chips" id="oSpeed" style="margin:0"></span><button type="button" class="pbtn" id="oHoy">Hoy</button><span class="sp"></span>
+        <span class="chips" id="oScale" style="margin:0"><button type="button" class="on" data-s="c">Compacta</button><button type="button" data-s="r">Distancias reales</button></span><button type="button" class="pbtn" id="oZin" aria-label="Acercar">+</button><button type="button" class="pbtn" id="oZout" aria-label="Alejar">−</button></div>
+    </div>
+  </section>
+
+  <section class="block" id="comparar">
+    <div class="sec-title"><h2>Cara a <em>cara</em></h2><span class="caps">Compara dos mundos</span></div>
+    <div class="cmp-sel"><select id="cA" aria-label="Primer astro"></select><span class="vs">contra</span><select id="cB" aria-label="Segundo astro"></select></div>
+    <div class="cmp"><canvas id="cmpViz" aria-label="Tamaños comparados a escala"></canvas><div id="cmp"></div></div>
+  </section>
+
+  <section class="block" id="edad">
+    <div class="sec-title"><h2>Tu edad en <em>otros mundos</em></h2><span class="caps">Un año es una vuelta al Sol, y cada planeta tarda distinto</span></div>
+    <div class="edad-top"><label for="nac">Tu fecha de nacimiento</label><input type="date" id="nac" value="1990-06-15"><span class="caps" id="edadNota">Fecha de ejemplo · escribe la tuya</span></div>
+    <div class="edades" id="edades"></div>
+    <div class="vida" id="vida"></div>
+  </section>
+
+  <section class="block" id="viaje">
+    <div class="sec-title"><h2>¿Cuánto tardarías <em>en llegar</em>?</h2><span class="caps">Distancias reales desde la Tierra para hoy</span></div>
+    <div class="via">
+      <div><span class="caps">Destino</span><div class="chips" id="vDest"></div><span class="caps">Vehículo</span><div class="chips" id="vVeh"></div></div>
+      <div class="via-out" id="vOut"></div>
+    </div>
+    <div class="vtrack caps"><span>Tierra</span><div class="line"><i id="ship"></i></div><span id="vDestLbl"></span></div>
+  </section>
+
+  <section class="block" id="quiz">
+    <div class="sec-title"><h2>Desafío del <em>astrónomo</em></h2><span class="caps">Ocho preguntas · pon a prueba lo que exploraste</span></div>
+    <div class="quiz" id="quizBox"></div>
+  </section>
+
+  <section class="atlas" id="atlas">
+    <div class="sec-title"><h2>Atlas de <em>constelaciones</em></h2><span class="caps">El punto verde marca las que se ven bien este mes</span></div>
+    <div class="chips" id="chips"></div>
+    <div class="sky">
+      <div class="chart-box"><canvas id="chart" aria-label="Carta estelar"></canvas><div class="tip" id="tip"></div>
+        <div class="legend caps">Tamaño = brillo aparente</div><div class="compass caps">N ↑ · E ←</div></div>
+      <div class="const" id="const"></div>
+    </div>
+  </section>
+
+  <footer class="caps"><span>Datos: NASA Planetary Fact Sheet y Solar System Exploration · lunas confirmadas a noviembre de 2025</span>
+    <span><a href="https://science.nasa.gov/solar-system/" target="_blank" rel="noopener">science.nasa.gov</a></span></footer>
+</div>
+
+<script>
+(function(){
+const $ = s => document.querySelector(s);
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const nf = (n, d = 0) => n.toLocaleString("es-MX", {minimumFractionDigits:d, maximumFractionDigits:d});
+
+/* ================= DATOS ================= */
+const B = [
+{id:"sol", num:"☉", nombre:"Sol", lat:"Sol · Helios", tipo:"La estrella", au:0, g:274, d:1392700, rot:0.03, tilt:7.25, glow:"#ffb347",
+ lead:"Una esfera de plasma de 1.4 millones de kilómetros que concentra el 99.86% de la masa del sistema solar. Todo lo que orbita aquí, incluida la Tierra, vive de su luz.",
+ facts:[["Diámetro","109 Tierras"],["Temperatura","5,500 °C"],["Edad","4,600 Ma"],["Tipo","Enana G2V"]],
+ ficha:[["Diámetro","1,392,700 km"],["Masa","333,000 Tierras"],["Gravedad","274 m/s² (28 g)"],["Rotación","25 d ecuador · 35 d polos"],["Superficie","5,500 °C (5,772 K)"],["Núcleo","15 millones °C"],["Composición","73% H · 25% He"],["Vuelta galáctica","~230 millones de años"]],
+ vert:["Distancia a la Tierra","149.6 millones de km"], vertR:["Edad","4,600 millones de años"], coord:["Centro del sistema","Brazo de Orión"],
+ tabs:{
+  panorama:["La estrella que nos sostiene",["El Sol es una estrella común, de tamaño mediano, a unos 26,000 años luz del centro de la Vía Láctea. Se formó hace unos 4,600 millones de años a partir del colapso de una nube de gas y polvo; el material sobrante dio origen a los planetas.","En su núcleo, cada segundo, unos 600 millones de toneladas de hidrógeno se fusionan en helio. La diferencia de masa se convierte en energía según E = mc²: así brilla. Esa luz tarda decenas de miles de años en abrirse paso desde el núcleo hasta la superficie, y luego solo 8 minutos y 20 segundos en llegar a la Tierra.","Está más o menos a la mitad de su vida. Dentro de unos 5,000 millones de años agotará el hidrógeno de su núcleo, se hinchará como gigante roja y terminará como enana blanca, un rescoldo del tamaño de la Tierra."]],
+  estructura:["Capas de una estrella",[["Núcleo","Hasta 0.25 radios solares. 15 millones °C y una densidad 150 veces la del agua: aquí ocurre la fusión.","#fff1b0"],["Zona radiativa","Hasta 0.7 radios. La energía viaja como luz que rebota átomo por átomo durante miles de años.","#ffd36e"],["Zona convectiva","Hasta la superficie. El gas caliente sube y baja como agua hirviendo; forma los gránulos que vemos.","#ffa947"],["Fotosfera","La «superficie» visible, de unos 500 km de grosor, a 5,500 °C. Aquí aparecen las manchas solares.","#ff8a3d"],["Cromosfera y corona","La atmósfera exterior. La corona supera el millón de grados, un misterio que aún se estudia.","#ff6a3d"]]],
+  atmosfera:["Clima espacial",["El Sol tiene un ciclo de actividad de unos 11 años. En el máximo aparecen más manchas solares, fulguraciones y eyecciones de masa coronal: nubes de plasma que pueden viajar a millones de km/h.","Cuando esas eyecciones alcanzan la Tierra, sacuden nuestro campo magnético: provocan auroras, pueden dañar satélites y redes eléctricas. El ciclo actual, el número 25, alcanzó su máximo alrededor de 2024–2025, cuando hubo auroras visibles incluso en el norte de México.","El viento solar, un flujo constante de partículas, sopla hasta más allá de Plutón y forma una burbuja llamada heliosfera que nos protege de parte de la radiación galáctica."]],
+  orbita:["El Sol también viaja",["El Sol gira sobre sí mismo, pero no como un cuerpo sólido: el ecuador da una vuelta en unos 25 días y los polos en 35. A esto se le llama rotación diferencial.","Además, arrastra a todo el sistema solar alrededor del centro de la galaxia a unos 230 km/s. Una vuelta completa, el «año galáctico», dura unos 230 millones de años: la última vez que estuvimos en este punto de la órbita, empezaban los dinosaurios."]],
+  lunas:["Su familia",[["8 planetas","Mercurio, Venus, Tierra, Marte, Júpiter, Saturno, Urano y Neptuno."],["5 planetas enanos","Ceres, Plutón, Haumea, Makemake y Eris, reconocidos por la UAI."],["Cinturón de asteroides","Millones de rocas entre Marte y Júpiter."],["Nube de Oort","Una esfera de cometas que podría llegar a un año luz de distancia."]]],
+  exploracion:["Misiones al Sol",[["1995","SOHO","Observatorio ESA/NASA que lleva décadas vigilando el Sol sin pausa."],["2010","Solar Dynamics Observatory","Fotografía el Sol en varias longitudes de onda cada pocos segundos."],["2018","Parker Solar Probe","La nave más rápida jamás construida; en diciembre de 2024 pasó a 6.1 millones de km de la superficie.",1],["2020","Solar Orbiter","ESA/NASA; tomó las primeras imágenes de los polos solares."]]],
+  curiosidades:["Para asombrarse",["En el volumen del Sol cabrían 1.3 millones de Tierras.","La luz que ves hoy se generó en el núcleo hace miles de años.","Pierde unos 4 millones de toneladas de masa por segundo convertidas en energía.","Nunca mires el Sol directamente ni con binoculares: un segundo puede dañar la retina para siempre."]],
+  observar:["Cómo observarlo con seguridad",["Usa solo filtros solares certificados (norma ISO 12312-2) o proyecta su imagen con un telescopio sobre una cartulina. Con filtro se ven manchas solares casi cualquier día de máximo solar.","Los eclipses son el mejor espectáculo: durante la totalidad se ve la corona a simple vista. El próximo eclipse total visible desde Europa será el 12 de agosto de 2026; en México, el siguiente total será en 2052."]]
+ }},
+{id:"mercurio", num:"I", nombre:"Mercurio", lat:"Mercurius", tipo:"El primer planeta", au:0.387, g:3.7, d:4879, rot:58.6, tilt:0.03, glow:"#b7b0a6",
+ lead:"El planeta más pequeño y el más cercano al Sol. Un mundo de cráteres sin atmósfera donde el día dura más que el año y la temperatura salta 600 grados del día a la noche.",
+ facts:[["Distancia","0.39 UA"],["Diámetro","4,879 km"],["Año","88 días"],["Lunas","0"]],
+ ficha:[["Distancia media","57.9 millones km"],["Diámetro","4,879 km (0.38 Tierras)"],["Masa","0.055 Tierras"],["Gravedad","3.7 m/s² (0.38 g)"],["Rotación","58.6 días"],["Día solar","176 días"],["Año","88 días"],["Inclinación del eje","0.03°"],["Temperatura","−173 a 427 °C"],["Lunas","0"]],
+ vert:["Distancia al Sol","0.39 UA"], vertR:["Excentricidad","0.206 · la mayor"], coord:["Perihelio 46 M km","Afelio 70 M km"],
+ tabs:{
+  panorama:["El mensajero veloz",["Los romanos le dieron el nombre del mensajero de los dioses porque cruza el cielo más rápido que cualquier otro planeta: recorre su órbita en solo 88 días, a 47 km/s.","Es apenas un poco más grande que nuestra Luna y se le parece: una superficie gris cubierta de cráteres, llanuras de lava antigua y enormes escarpes que se formaron cuando el planeta se enfrió y se encogió.","Su rotación está ligada a su órbita en una resonancia 3:2: gira tres veces sobre sí mismo por cada dos vueltas al Sol. El resultado es extraño: desde su superficie, un día solar completo dura 176 días terrestres, dos de sus años."]],
+  estructura:["Casi todo es núcleo",[["Núcleo metálico","Ocupa cerca del 85% del radio, proporcionalmente el mayor del sistema solar. Parte sigue fundida.","#c9a77a"],["Capa sólida de sulfuro de hierro","Posible capa entre núcleo y manto revelada por la misión MESSENGER.","#9b8a74"],["Manto rocoso","Delgado, de unos 400 km de silicatos.","#7c776f"],["Corteza","Entre 26 y 50 km de roca cubierta de cráteres.","#b7b0a6"]]],
+  atmosfera:["Sin cobijo",["Mercurio no tiene una atmósfera real, solo una exosfera tenue de átomos arrancados de su superficie por el viento solar: sodio, potasio, oxígeno, hidrógeno y helio.","Sin aire que retenga el calor, el lado iluminado llega a 427 °C, suficiente para fundir plomo, y el lado oscuro cae a −173 °C.","Aun así, en el fondo de cráteres polares que nunca reciben luz, MESSENGER confirmó que hay hielo de agua."]],
+  orbita:["La órbita más excéntrica",["Su órbita es la más alargada entre los planetas: va de 46 a 70 millones de km del Sol. En su punto más cercano el Sol se ve tres veces más grande que desde la Tierra.","La órbita de Mercurio gira lentamente con el tiempo, un efecto que la física de Newton no lograba explicar. La relatividad general de Einstein lo predijo con exactitud en 1915: fue una de sus primeras grandes confirmaciones."]],
+  lunas:["Sin lunas",[["Ninguna","Está tan cerca del Sol que cualquier luna sería arrastrada por su gravedad o se perdería en el espacio."]]],
+  exploracion:["Visitas a Mercurio",[["1974","Mariner 10","Primera nave en visitarlo; fotografió el 45% de su superficie en tres sobrevuelos."],["2011","MESSENGER","Primera en orbitarlo. Mapeó todo el planeta, halló hielo polar y terminó estrellándose en 2015."],["2018","BepiColombo","Misión de la ESA y JAXA lanzada en 2018. Tras seis sobrevuelos, su entrada en órbita está prevista para noviembre de 2026.",1]]],
+  curiosidades:["Para asombrarse",["No es el planeta más caliente: Venus lo es, por su atmósfera.","Su cuenca Caloris mide 1,550 km, casi el ancho de México de norte a sur.","En algunos lugares de su superficie, el Sol sale, se detiene, retrocede y vuelve a avanzar en el cielo.","Su núcleo genera un campo magnético débil, cerca del 1% del terrestre."]],
+  observar:["Cómo encontrarlo",["Es difícil de ver porque nunca se aleja más de 28° del Sol. Búscalo bajo en el horizonte poco después del atardecer (al oeste) o antes del amanecer (al este) en sus fechas de máxima elongación.","Se ve como un punto anaranjado brillante. Con telescopio muestra fases, como la Luna. Nunca lo busques con el Sol sobre el horizonte."]]
+ }},
+{id:"venus", num:"II", nombre:"Venus", lat:"Venus", tipo:"El segundo planeta", au:0.723, g:8.87, d:12104, rot:-243, tilt:177.4, glow:"#f2d79b",
+ lead:"El gemelo infernal de la Tierra: casi del mismo tamaño, pero envuelto en nubes de ácido sulfúrico sobre una superficie a 464 °C que derrite el plomo.",
+ facts:[["Distancia","0.72 UA"],["Diámetro","12,104 km"],["Temperatura","464 °C"],["Lunas","0"]],
+ ficha:[["Distancia media","108.2 millones km"],["Diámetro","12,104 km (0.95 Tierras)"],["Masa","0.815 Tierras"],["Gravedad","8.87 m/s² (0.90 g)"],["Rotación","243 días, retrógrada"],["Día solar","116.8 días"],["Año","224.7 días"],["Inclinación del eje","177.4°"],["Temperatura","464 °C"],["Presión","92 veces la terrestre"]],
+ vert:["Distancia al Sol","0.72 UA"], vertR:["Presión en superficie","92 bar"], coord:["Gira al revés","Sale el Sol por el oeste"],
+ tabs:{
+  panorama:["El lucero del alba",["Después del Sol y la Luna, Venus es lo más brillante del cielo. Los mexicas lo asociaban con Quetzalcóatl y los mayas calcularon su ciclo de 584 días con un error de apenas dos horas en el Códice de Dresde.","Es casi gemelo de la Tierra en tamaño y masa, pero su historia tomó otro camino. Un efecto invernadero desbocado convirtió su superficie en el lugar más caliente del sistema solar, más que Mercurio.","Gira al revés que casi todos los planetas, y tan despacio que su día sideral (243 días) es más largo que su año (225 días). Desde su superficie, el Sol saldría por el oeste."]],
+  estructura:["Bajo las nubes",[["Núcleo de hierro y níquel","De unos 3,000 km de radio. Venus no tiene campo magnético propio apreciable.","#c9a77a"],["Manto rocoso","Caliente y probablemente activo; hay indicios de volcanes recientes.","#a8754c"],["Corteza","Basáltica y joven: casi toda la superficie tiene menos de 500 millones de años.","#d1a564"],["Nubes de ácido","Entre 48 y 70 km de altura, una capa espesa de gotas de ácido sulfúrico.","#f2d79b"]]],
+  atmosfera:["Un horno de CO₂",["Su atmósfera es 96.5% dióxido de carbono. En la superficie la presión equivale a estar a 900 metros bajo el mar.","Las nubes reflejan el 75% de la luz solar, pero el calor que sí entra queda atrapado: la temperatura es casi igual de día y de noche, en los polos y en el ecuador.","En las capas altas, los vientos dan la vuelta al planeta en cuatro días, sesenta veces más rápido de lo que gira el suelo: se le llama superrotación."]],
+  orbita:["La órbita más redonda",["Su órbita es la más circular de todos los planetas, con una excentricidad de 0.007.","Venus es el planeta que más se acerca a la Tierra, hasta unos 38 millones de km. Cada ocho años repite casi la misma posición en nuestro cielo, un ritmo que las culturas mesoamericanas usaron en sus calendarios."]],
+  lunas:["Sin lunas",[["Ninguna","Venus no tiene satélites. Una hipótesis dice que tuvo uno y lo perdió, quizá por el mismo impacto que invirtió su giro."]]],
+  exploracion:["Visitas a Venus",[["1962","Mariner 2","Primer sobrevuelo exitoso de otro planeta; midió su enorme temperatura."],["1970","Venera 7","La URSS logró la primera transmisión desde la superficie de otro planeta. Venera 13 tomó fotos a color en 1982."],["1990","Magellan","Cartografió el 98% de la superficie con radar."],["2030s","VERITAS, DAVINCI y EnVision","Misiones de la NASA y la ESA planeadas para estudiar su geología y atmósfera.",1]]],
+  curiosidades:["Para asombrarse",["Tiene más volcanes que cualquier otro planeta: más de 1,600 grandes.","Una sonda sobrevive en su superficie apenas un par de horas antes de fundirse.","Es tan brillante que puede proyectar sombras en una noche sin Luna.","A 50 km de altura, la presión y temperatura son parecidas a las de la Tierra."]],
+  observar:["Cómo encontrarlo",["Imposible de confundir: es el punto blanco más brillante después de la puesta del Sol (lucero de la tarde) o antes del amanecer (lucero del alba), según la época.","Con binoculares firmes o un telescopio pequeño verás sus fases. Galileo las observó en 1610 y fue una prueba clave de que los planetas giran alrededor del Sol."]]
+ }},
+{id:"tierra", num:"III", nombre:"Tierra", lat:"Terra · Gaia", tipo:"El tercer planeta", au:1, g:9.81, d:12742, rot:1, tilt:23.44, glow:"#7fb6ff",
+ lead:"El único lugar conocido con vida y con agua líquida en su superficie. Un planeta rocoso con océanos, una atmósfera que respira y un campo magnético que lo protege.",
+ facts:[["Distancia","1 UA"],["Diámetro","12,742 km"],["Día","23 h 56 min"],["Lunas","1"]],
+ ficha:[["Distancia media","149.6 millones km"],["Diámetro","12,742 km"],["Masa","5.97 × 10²⁴ kg"],["Gravedad","9.81 m/s² (1 g)"],["Rotación","23 h 56 min"],["Año","365.25 días"],["Inclinación del eje","23.44°"],["Temperatura media","15 °C"],["Agua superficial","71%"],["Lunas","1"]],
+ vert:["Distancia al Sol","1 UA · 149.6 M km"], vertR:["Edad","4,540 millones de años"], coord:["Velocidad orbital","29.8 km/s"],
+ tabs:{
+  panorama:["Un punto azul pálido",["La Tierra es el planeta rocoso más grande y el más denso del sistema solar. Está en la «zona habitable», a la distancia justa para que el agua sea líquida.","Su superficie se renueva sin descanso: las placas tectónicas se mueven unos centímetros al año, levantan montañas, abren océanos y reciclan el carbono, un termostato que ha mantenido el clima estable durante miles de millones de años.","La vida apareció hace al menos 3,500 millones de años y transformó el planeta: las primeras bacterias fotosintéticas llenaron la atmósfera de oxígeno."]],
+  estructura:["Las capas de la Tierra",[["Núcleo interno","Esfera sólida de hierro y níquel de 1,220 km de radio, tan caliente como la superficie del Sol.","#fff0b8"],["Núcleo externo","Hierro líquido en movimiento; genera el campo magnético.","#f4a259"],["Manto","2,900 km de roca caliente que fluye muy despacio y mueve las placas.","#c96a3c"],["Corteza","De 5 km bajo los océanos a 70 km bajo las montañas.","#6e9b5f"]]],
+  atmosfera:["El aire que respiramos",["78% nitrógeno, 21% oxígeno y pequeñas cantidades de argón, vapor de agua y dióxido de carbono. La capa de ozono, a 15–35 km de altura, filtra la radiación ultravioleta.","El efecto invernadero natural mantiene la temperatura media en 15 °C; sin él, sería de −18 °C. El aumento de CO₂ por actividad humana ha calentado el planeta cerca de 1.3 °C desde la era preindustrial.","El campo magnético desvía el viento solar. Cuando partículas del Sol logran entrar cerca de los polos, encienden las auroras."]],
+  orbita:["Las estaciones",["Las estaciones no se deben a la distancia al Sol: la Tierra está más cerca en enero. Se deben a la inclinación de 23.44° de su eje, que hace que cada hemisferio reciba más o menos luz según la época.","El año dura 365.2422 días; por eso cada cuatro años sumamos un día, con algunas excepciones en los años de siglo."]],
+  lunas:["Nuestra compañera",[["La Luna","Diámetro de 3,474 km, a 384,400 km. Es la quinta luna más grande del sistema solar y estabiliza la inclinación del eje terrestre."]]],
+  exploracion:["Vernos desde fuera",[["1957","Sputnik 1","Primer satélite artificial."],["1968","Apolo 8","La foto «Salida de la Tierra» desde la órbita lunar."],["1990","Voyager 1","El «punto azul pálido»: la Tierra vista desde 6,000 millones de km."],["1998","Estación Espacial Internacional","Habitada sin interrupción desde el año 2000.",1]]],
+  curiosidades:["Para asombrarse",["La Tierra no es una esfera perfecta: es más ancha en el ecuador por su rotación.","Los días se alargan unos 2 milisegundos por siglo por el frenado de las mareas.","El punto más lejano del centro de la Tierra no es el Everest, es el volcán Chimborazo en Ecuador.","Viajas a 107,000 km/h alrededor del Sol mientras lees esto."]],
+  observar:["Mirar hacia arriba desde casa",["Desde la Tierra puedes ver a simple vista cinco planetas: Mercurio, Venus, Marte, Júpiter y Saturno. Los planetas no titilan como las estrellas y siempre aparecen cerca de la eclíptica, el camino del Sol.","Busca cielos oscuros lejos de la ciudad: a 50 km de la mancha urbana la diferencia es enorme. Deja que tus ojos se adapten 20 minutos a la oscuridad."]]
+ }},
+{id:"luna", num:"☾", nombre:"Luna", lat:"Luna · Selene", tipo:"El satélite de la Tierra", au:1, g:1.62, d:3474, rot:27.3, tilt:6.7, glow:"#d8d6d0", moon:true,
+ lead:"El único mundo, además del nuestro, que el ser humano ha pisado. Un satélite de roca gris que siempre nos muestra la misma cara y mueve las mareas de los océanos.",
+ facts:[["Distancia","384,400 km"],["Diámetro","3,474 km"],["Órbita","27.3 días"],["Gravedad","0.17 g"]],
+ ficha:[["Distancia a la Tierra","384,400 km"],["Diámetro","3,474 km (0.27 Tierras)"],["Masa","0.0123 Tierras"],["Gravedad","1.62 m/s² (0.17 g)"],["Rotación","27.3 días (sincrónica)"],["Mes lunar","29.5 días"],["Temperatura","−173 a 127 °C"],["Se aleja","3.8 cm por año"]],
+ vert:["Distancia a la Tierra","384,400 km"], vertR:["La luz tarda","1.28 segundos"], coord:["Cara visible","59% de su superficie"],
+ tabs:{
+  panorama:["Nuestro satélite",["La teoría más aceptada dice que la Luna nació hace unos 4,500 millones de años cuando un cuerpo del tamaño de Marte, llamado Theia, chocó contra la Tierra joven. Los restos se reunieron en órbita.","Está en rotación sincrónica: gira sobre sí misma en el mismo tiempo que tarda en rodear la Tierra, por eso siempre vemos la misma cara. Gracias a pequeños bamboleos, en total vemos el 59% de su superficie.","Las manchas oscuras que forman el «conejo» que veían los pueblos mesoamericanos son mares de lava solidificada de hace 3,000 a 3,500 millones de años."]],
+  estructura:["Por dentro",[["Núcleo","Pequeño, rico en hierro, de unos 350 km de radio, con una parte fundida.","#c9a77a"],["Manto","Roca densa; los sismógrafos del Apolo registraron «lunamotos».","#8d867c"],["Corteza","Más gruesa en la cara oculta (hasta 60 km) que en la visible.","#d8d6d0"],["Regolito","Polvo fino y abrasivo de varios metros de profundidad.","#a7a39b"]]],
+  atmosfera:["Sin aire",["La Luna no tiene atmósfera respirable, solo una exosfera casi vacía. Sin aire que conduzca el sonido, ahí reina el silencio total.","Sin aire no hay erosión: las huellas de los astronautas del Apolo pueden durar millones de años.","En los polos hay cráteres en sombra permanente con hielo de agua, uno de los objetivos de las próximas misiones tripuladas."]],
+  orbita:["Fases y eclipses",["El mes sideral dura 27.3 días, pero de luna nueva a luna nueva pasan 29.5 días porque la Tierra también avanza alrededor del Sol.","Su órbita está inclinada 5° respecto a la de la Tierra; por eso no hay un eclipse en cada luna llena o nueva. La Luna se aleja de nosotros 3.8 cm cada año."]],
+  lunas:["Ella es la luna",[["Satélite natural","La Luna es la luna de la Tierra. En proporción a su planeta es la más grande del sistema solar (excepto Caronte para Plutón)."]]],
+  exploracion:["Hacia la Luna",[["1959","Luna 2 y Luna 3","La URSS impacta la Luna y fotografía por primera vez su cara oculta."],["1969","Apolo 11","Neil Armstrong y Buzz Aldrin caminan sobre la Luna. Doce personas la pisaron hasta 1972."],["2019","Chang'e 4","China aterriza por primera vez en la cara oculta."],["2026","Programa Artemis","La NASA prepara el regreso de astronautas: Artemis II rodea la Luna con tripulación, y Artemis III busca alunizar cerca del polo sur.",1]]],
+  curiosidades:["Para asombrarse",["En la Luna pesarías la sexta parte: podrías saltar seis veces más alto.","La Luna llena parece más grande en el horizonte, pero es una ilusión óptica.","Los astronautas trajeron 382 kg de rocas lunares.","Un día lunar, de amanecer a amanecer, dura 29.5 días terrestres."]],
+  observar:["Cómo observarla",["Lo mejor no es la Luna llena, sino los días cercanos al cuarto creciente: en la línea entre luz y sombra (el terminador) los cráteres proyectan sombras largas y se ven en relieve.","Con unos binoculares sencillos verás los mares, cráteres como Tycho y Copérnico, y cadenas montañosas."]]
+ }},
+{id:"marte", num:"IV", nombre:"Marte", lat:"Mars · Ares", tipo:"El cuarto planeta", au:1.524, g:3.71, d:6779, rot:1.03, tilt:25.19, glow:"#e07a4f",
+ lead:"El planeta rojo. Un desierto frío con el volcán más alto del sistema solar, un cañón más largo que México y huellas de ríos y lagos que existieron hace miles de millones de años.",
+ facts:[["Distancia","1.52 UA"],["Diámetro","6,779 km"],["Día","24 h 37 min"],["Lunas","2"]],
+ ficha:[["Distancia media","227.9 millones km"],["Diámetro","6,779 km (0.53 Tierras)"],["Masa","0.107 Tierras"],["Gravedad","3.71 m/s² (0.38 g)"],["Rotación","24 h 37 min"],["Año","687 días"],["Inclinación del eje","25.19°"],["Temperatura media","−63 °C"],["Presión","0.6% de la terrestre"],["Lunas","2"]],
+ vert:["Distancia al Sol","1.52 UA"], vertR:["Olympus Mons","21.9 km de altura"], coord:["Valles Marineris","4,000 km de largo"],
+ tabs:{
+  panorama:["El planeta rojo",["Su color viene del óxido de hierro: el polvo que lo cubre es, literalmente, herrumbre. Por ese tono sangriento los griegos y romanos lo asociaron con el dios de la guerra.","Marte es la mitad de ancho que la Tierra y su día dura casi lo mismo: 24 horas y 37 minutos. También tiene estaciones, porque su eje está inclinado 25°, casi como el nuestro.","Hace más de 3,000 millones de años tuvo ríos, lagos y quizá un océano en su hemisferio norte. Perdió su campo magnético y el viento solar le arrancó la mayor parte de la atmósfera. Hoy la pregunta es si alguna vez hubo vida."]],
+  estructura:["Por dentro",[["Núcleo","Hierro, níquel y azufre, más grande y menos denso de lo esperado según la misión InSight.","#c9a77a"],["Manto","Silicatos; alimentó volcanes gigantescos en el pasado.","#a5543a"],["Corteza","De 24 a 72 km. Sin placas tectónicas, los volcanes crecieron sin moverse.","#c8653d"],["Casquetes polares","Hielo de agua cubierto en invierno por escarcha de CO₂.","#f3efe8"]]],
+  atmosfera:["Cielo rosa, atardecer azul",["Su atmósfera es muy delgada, 95% CO₂, con una presión que no llega al 1% de la terrestre. El agua líquida hierve y se congela a la vez.","El polvo fino hace que el cielo de día sea color caramelo y que los atardeceres sean azules, al revés que en la Tierra.","Las tormentas de polvo pueden cubrir el planeta entero durante semanas, como la que en 2018 dejó sin energía al rover Opportunity."]],
+  orbita:["Oposiciones",["Marte tarda 687 días en dar una vuelta al Sol. Cada 26 meses la Tierra lo «alcanza» y queda entre Marte y el Sol: es la oposición, cuando se ve más grande y brillante.","Esas ventanas también son el mejor momento para lanzar misiones, porque el viaje es más corto: entre 6 y 9 meses."]],
+  lunas:["Miedo y Terror",[["Fobos","27 km de largo. Gira tan cerca que se acerca 1.8 m por siglo; en unos 50 millones de años se romperá en un anillo o chocará."],["Deimos","15 km. Desde Marte parecería una estrella brillante."]]],
+  exploracion:["Visitas a Marte",[["1965","Mariner 4","Primeras fotos de cerca: un mundo de cráteres."],["1976","Viking 1 y 2","Primeros aterrizajes exitosos con experimentos para buscar vida."],["2012","Curiosity","Rover del tamaño de un auto que sigue explorando el cráter Gale."],["2021","Perseverance e Ingenuity","Recoge muestras en un antiguo delta; Ingenuity fue el primer helicóptero en otro planeta.",1]]],
+  curiosidades:["Para asombrarse",["Olympus Mons es casi tres veces más alto que el Everest y tan ancho como el estado de Chihuahua.","En Marte pesarías el 38% de lo que pesas aquí.","El Sol se ve desde Marte con dos tercios del tamaño que vemos desde la Tierra.","Se han encontrado en la Tierra meteoritos que vinieron de Marte."]],
+  observar:["Cómo encontrarlo",["Búscalo como un punto anaranjado que no titila. Su brillo cambia mucho: en oposición rivaliza con Júpiter; lejos de ella pasa desapercibido.","Con un telescopio de 100 mm en buena oposición podrás distinguir un casquete polar blanco y manchas oscuras como Syrtis Major."]]
+ }},
+{id:"jupiter", num:"V", nombre:"Júpiter", lat:"Iuppiter · Zeus", tipo:"El quinto planeta", au:5.203, g:24.79, d:139820, rot:0.41, tilt:3.13, glow:"#e3b88a",
+ lead:"El gigante del sistema solar. En él cabrían más de 1,300 Tierras; su Gran Mancha Roja es una tormenta más ancha que nuestro planeta que lleva siglos girando.",
+ facts:[["Distancia","5.2 UA"],["Diámetro","139,820 km"],["Día","9 h 56 min"],["Lunas","97"]],
+ ficha:[["Distancia media","778.5 millones km"],["Diámetro","139,820 km (11 Tierras)"],["Masa","317.8 Tierras"],["Gravedad","24.79 m/s² (2.53 g)"],["Rotación","9 h 56 min"],["Año","11.86 años"],["Inclinación del eje","3.13°"],["Nubes","−110 °C"],["Lunas confirmadas","97"],["Anillos","Sí, tenues"]],
+ vert:["Distancia al Sol","5.2 UA"], vertR:["Masa","2.5 veces todos los demás planetas juntos"], coord:["Gran Mancha Roja","~16,000 km de ancho"],
+ tabs:{
+  panorama:["El rey de los planetas",["Júpiter tiene más del doble de la masa de todos los demás planetas juntos. Es un gigante gaseoso: no tiene superficie sólida, solo capas de gas que se vuelven líquidas a medida que aumenta la presión.","Gira más rápido que cualquier otro planeta, una vez cada 9 horas y 56 minutos. Esa velocidad estira sus nubes en franjas claras (zonas) y oscuras (cinturones) separadas por vientos de hasta 500 km/h.","Su gravedad ha moldeado el sistema solar: desvía cometas, mantiene el cinturón de asteroides y quizá protegió a la Tierra de muchos impactos."]],
+  estructura:["Del gas al metal",[["Núcleo difuso","La misión Juno mostró que no es compacto sino una mezcla «diluida» de roca, hielo e hidrógeno.","#c9a77a"],["Hidrógeno metálico","A presiones millones de veces la terrestre, el hidrógeno conduce electricidad y genera el campo magnético más potente de los planetas.","#a07f6a"],["Hidrógeno líquido","Una capa gigantesca sin límite claro con la atmósfera.","#c79f7b"],["Atmósfera y nubes","Nubes de amoníaco, hidrosulfuro de amonio y agua en capas.","#e3b88a"]]],
+  atmosfera:["Tormentas eternas",["La Gran Mancha Roja es un anticiclón observado desde hace al menos 190 años, quizá desde 1665. Se ha encogido: hoy mide unos 16,000 km, aún más ancha que la Tierra.","Hay rayos más potentes que los terrestres y auroras permanentes en los polos, donde Juno descubrió racimos de ciclones del tamaño de continentes.","Júpiter emite más calor del que recibe del Sol, energía que le queda de su formación."]],
+  orbita:["Un año de doce",["Tarda casi 12 años en rodear el Sol, por eso avanza aproximadamente una constelación del zodiaco por año.","Su eje casi no está inclinado (3°), así que no tiene estaciones marcadas."]],
+  lunas:["Una corte de 97 lunas",[["Ío","La más volcánica del sistema solar: más de 400 volcanes activos que lanzan azufre a 500 km de altura."],["Europa","Un océano salado bajo una corteza de hielo, con más agua que todos los océanos terrestres. Candidata a albergar vida."],["Ganímedes","La luna más grande del sistema solar, mayor que Mercurio, con campo magnético propio."],["Calisto","El objeto más lleno de cráteres conocido; su superficie casi no ha cambiado en 4,000 millones de años."]]],
+  exploracion:["Visitas a Júpiter",[["1973","Pioneer 10","Primera nave en cruzar el cinturón de asteroides y sobrevolar Júpiter."],["1979","Voyager 1 y 2","Descubren los volcanes de Ío y los anillos."],["1995","Galileo","Primer orbitador; lanzó una sonda dentro de la atmósfera."],["2016","Juno","Orbita sus polos y revela su interior y sus ciclones."],["2030s","Europa Clipper y JUICE","Lanzadas en 2024 y 2023; llegarán en 2030 y 2031 para estudiar sus lunas heladas.",1]]],
+  curiosidades:["Para asombrarse",["Si Júpiter fuera 80 veces más masivo, habría encendido fusión y sería una estrella.","Sus cuatro lunas mayores fueron descubiertas por Galileo en 1610 con un telescopio casero.","Un día en Júpiter dura menos de 10 horas.","Su campo magnético, si fuera visible, se vería desde la Tierra más grande que la Luna llena."]],
+  observar:["Cómo encontrarlo",["Es el segundo planeta más brillante del cielo nocturno, una luz blanca firme. Con binoculares sobre un apoyo verás sus cuatro lunas galileanas como puntitos alineados, que cambian de posición cada noche.","Con un telescopio pequeño se distinguen los dos cinturones oscuros, y con uno mediano, la Gran Mancha Roja cuando mira hacia nosotros."]]
+ }},
+{id:"saturno", num:"VI", nombre:"Saturno", lat:"Saturnus · Cronos", tipo:"El sexto planeta", au:9.537, g:10.44, d:116460, rot:0.44, tilt:26.73, glow:"#e8d3a0", rings:true,
+ lead:"La joya del sistema solar. Sus anillos de hielo miden 280,000 km de ancho pero apenas unas decenas de metros de grosor, y a su alrededor giran 274 lunas, más que ningún otro planeta.",
+ facts:[["Distancia","9.5 UA"],["Diámetro","116,460 km"],["Año","29.5 años"],["Lunas","274"]],
+ ficha:[["Distancia media","1,432 millones km"],["Diámetro","116,460 km (9.1 Tierras)"],["Masa","95.2 Tierras"],["Gravedad","10.44 m/s² (1.07 g)"],["Rotación","10 h 33 min"],["Año","29.45 años"],["Inclinación del eje","26.73°"],["Nubes","−140 °C"],["Densidad","0.69 g/cm³, menos que el agua"],["Lunas confirmadas","274"]],
+ vert:["Distancia al Sol","9.54 UA"], vertR:["Ancho de los anillos","~280,000 km"], coord:["Hexágono polar","~29,000 km"],
+ tabs:{
+  panorama:["El señor de los anillos",["Saturno es el segundo planeta más grande y el menos denso: en promedio pesa menos que el agua. Como Júpiter, está hecho casi todo de hidrógeno y helio, pero sus franjas se ven más suaves por una capa de neblina.","Gira tan rápido que está visiblemente achatado: su diámetro ecuatorial es un 10% mayor que el polar.","Sus anillos fueron un enigma desde que Galileo los vio en 1610 como «orejas». Christiaan Huygens entendió en 1655 que eran un disco separado del planeta."]],
+  estructura:["Por dentro",[["Núcleo","Roca y hielo, difuso, varias veces la masa de la Tierra.","#c9a77a"],["Hidrógeno metálico","Genera su campo magnético, curiosamente casi alineado con su eje de giro.","#a89070"],["Hidrógeno y helio líquidos","Gotas de helio «llueven» hacia dentro y calientan el planeta.","#cfb98e"],["Atmósfera","Nubes de amoníaco bajo una neblina dorada.","#e8d3a0"]]],
+  atmosfera:["El hexágono",["En su polo norte gira una corriente de chorro con forma de hexágono casi perfecto, de unos 29,000 km de lado a lado: cabrían dos Tierras dentro. No se conoce nada igual en otro planeta.","Sus vientos llegan a 1,800 km/h, entre los más rápidos del sistema solar.","Cada 30 años, más o menos, surge una gran tormenta blanca que rodea el planeta entero."]],
+  orbita:["Los anillos desaparecen",["Saturno tarda 29.5 años en dar la vuelta al Sol. Como su eje está inclinado 27°, a lo largo de ese tiempo vemos sus anillos desde arriba, de canto y desde abajo.","Cuando la Tierra cruza el plano de los anillos, estos casi desaparecen en los telescopios: ocurrió en marzo de 2025. Ahora se van abriendo poco a poco otra vez."]],
+  lunas:["274 lunas",[["Titán","Más grande que Mercurio, con una atmósfera densa de nitrógeno, lagos de metano y lluvia de hidrocarburos. La sonda Huygens aterrizó ahí en 2005."],["Encélado","Lanza géiseres de agua desde un océano bajo su hielo; Cassini voló a través de ellos."],["Mimas","Su cráter Herschel le da un parecido famoso con la Estrella de la Muerte."],["Jápeto","Un hemisferio negro como el carbón y otro blanco como la nieve."]]],
+  exploracion:["Visitas a Saturno",[["1979","Pioneer 11","Primer sobrevuelo."],["1980","Voyager 1 y 2","Revelan la estructura fina de los anillos."],["2004","Cassini-Huygens","Trece años en órbita; terminó en 2017 lanzándose a la atmósfera para no contaminar sus lunas."],["2028","Dragonfly","Un dron de la NASA que se lanzará en 2028 para volar sobre las dunas de Titán a mediados de los 2030.",1]]],
+  curiosidades:["Para asombrarse",["Si existiera una bañera suficientemente grande, Saturno flotaría.","Los anillos son casi 99% hielo de agua, en trozos desde granos de arena hasta casas.","Los anillos podrían ser jóvenes, de unos cientos de millones de años, y estar cayendo poco a poco al planeta.","Es el planeta más lejano que se ve fácilmente a simple vista."]],
+  observar:["Cómo encontrarlo",["A simple vista es una estrella amarillenta que no titila. El momento mágico llega con cualquier telescopio de 30 aumentos o más: los anillos se ven nítidos y suelen arrancar exclamaciones.","Con un poco más de aumento verás la división de Cassini y Titán como un punto brillante cercano."]]
+ }},
+{id:"urano", num:"VII", nombre:"Urano", lat:"Uranus · Urano", tipo:"El séptimo planeta", au:19.19, g:8.69, d:50724, rot:-0.72, tilt:97.77, glow:"#9fe3e8", rings:true,
+ lead:"El planeta acostado. Gira con su eje casi horizontal, de modo que cada polo pasa 42 años de día y 42 años de noche. Un gigante de hielo de color turquesa.",
+ facts:[["Distancia","19.2 UA"],["Diámetro","50,724 km"],["Eje","97.8°"],["Lunas","29"]],
+ ficha:[["Distancia media","2,867 millones km"],["Diámetro","50,724 km (4 Tierras)"],["Masa","14.5 Tierras"],["Gravedad","8.69 m/s² (0.89 g)"],["Rotación","17 h 14 min, retrógrada"],["Año","84 años"],["Inclinación del eje","97.77°"],["Temperatura","−195 °C (mín. −224 °C)"],["Anillos","13"],["Lunas confirmadas","29"]],
+ vert:["Distancia al Sol","19.2 UA"], vertR:["Un verano en cada polo","42 años"], coord:["Descubierto","13 de marzo de 1781"],
+ tabs:{
+  panorama:["El primero descubierto con telescopio",["William Herschel lo descubrió en 1781 desde el jardín de su casa en Inglaterra. Fue el primer planeta desconocido para los antiguos y duplicó de golpe el tamaño del sistema solar conocido.","Urano es un «gigante de hielo»: bajo su atmósfera de hidrógeno y helio hay un enorme manto de agua, amoníaco y metano en estado fluido y caliente. El metano absorbe la luz roja y le da su color turquesa.","Su rasgo más famoso es su inclinación: el eje está tumbado 98°, probablemente por un choque gigantesco en su juventud. Rueda alrededor del Sol como una pelota."]],
+  estructura:["Un gigante de hielo",[["Núcleo rocoso","Pequeño, de roca y hierro, quizá del tamaño de la Tierra.","#c9a77a"],["Manto helado","Agua, amoníaco y metano a miles de grados y presiones enormes. Podría «llover» diamante.","#5aa7b8"],["Envoltura de gas","Hidrógeno y helio con metano.","#9fe3e8"]]],
+  atmosfera:["El planeta más frío",["Aunque Neptuno está más lejos, Urano tiene la temperatura más baja registrada entre los planetas: −224 °C. Casi no emite calor interno, un misterio aún sin resolver.","Se veía como una esfera sin rasgos cuando pasó la Voyager 2 en 1986, pero los telescopios modernos han captado tormentas, bandas y un casquete polar brillante a medida que avanzan sus estaciones."]],
+  orbita:["Estaciones extremas",["Tarda 84 años en dar una vuelta al Sol. Por su inclinación, durante los solsticios uno de sus polos apunta directamente al Sol y el otro queda en la oscuridad 42 años seguidos.","Además gira al revés, como Venus. Su campo magnético está inclinado 59° y desplazado del centro."]],
+  lunas:["29 lunas literarias",[["Titania","La más grande, con cañones de 1,500 km."],["Oberón","Antigua y llena de cráteres."],["Miranda","Un rompecabezas de terrenos con un acantilado de 20 km de altura, el más alto conocido."],["Ariel y Umbriel","Una brillante y joven, la otra la más oscura. Todas llevan nombres de personajes de Shakespeare y Pope."]]],
+  exploracion:["Visitas a Urano",[["1986","Voyager 2","La única nave que lo ha visitado: descubrió 10 lunas y dos anillos en un sobrevuelo de horas."],["Futuro","Uranus Orbiter and Probe","La comunidad científica de EE. UU. la recomendó como la próxima gran misión de la NASA; aún no tiene fecha de lanzamiento.",1]]],
+  curiosidades:["Para asombrarse",["Fue el primer planeta descubierto en la era moderna; Herschel quiso llamarlo «Estrella de Jorge» en honor del rey.","Sus anillos son oscuros como el carbón y se descubrieron en 1977, antes de que una nave los viera.","Si estuvieras en uno de sus polos, verías el Sol dar vueltas en el cielo sin ponerse durante décadas.","Una luz del Sol tarda 2 horas y 40 minutos en llegar a él."]],
+  observar:["Cómo encontrarlo",["Está justo en el límite de lo visible a simple vista (magnitud 5.7): necesitas un cielo muy oscuro y saber dónde mirar. Con binoculares es fácil si usas una carta celeste o una app.","Con telescopio se ve como un pequeño disco verde azulado, sin detalles."]]
+ }},
+{id:"neptuno", num:"VIII", nombre:"Neptuno", lat:"Neptunus · Poseidón", tipo:"El octavo planeta", au:30.07, g:11.15, d:49244, rot:0.67, tilt:28.32, glow:"#6c8cff",
+ lead:"El planeta más lejano, descubierto con lápiz y papel antes que con telescopio. Un mundo azul intenso con los vientos más rápidos del sistema solar.",
+ facts:[["Distancia","30.1 UA"],["Diámetro","49,244 km"],["Año","164.8 años"],["Lunas","16"]],
+ ficha:[["Distancia media","4,515 millones km"],["Diámetro","49,244 km (3.9 Tierras)"],["Masa","17.1 Tierras"],["Gravedad","11.15 m/s² (1.14 g)"],["Rotación","16 h 6 min"],["Año","164.8 años"],["Inclinación del eje","28.32°"],["Temperatura","−200 °C"],["Anillos","5 principales"],["Lunas confirmadas","16"]],
+ vert:["Distancia al Sol","30.1 UA"], vertR:["Vientos","2,100 km/h"], coord:["Descubierto","23 de septiembre de 1846"],
+ tabs:{
+  panorama:["El planeta de las matemáticas",["Urano no se movía como debía: algo lo jalaba. Urbain Le Verrier calculó dónde tendría que estar un planeta desconocido y Johann Galle lo encontró en 1846 a menos de 1° del punto predicho. Fue el triunfo de la física de Newton.","Neptuno es un gigante de hielo, gemelo en tamaño de Urano, pero de un azul más profundo y con una atmósfera mucho más activa, a pesar de recibir 900 veces menos luz que la Tierra.","Desde su descubrimiento apenas completó su primera órbita en 2011."]],
+  estructura:["Un gigante de hielo",[["Núcleo rocoso","Del tamaño de la Tierra, con roca y hierro.","#c9a77a"],["Manto helado","Agua, amoníaco y metano calientes y densos; posibles «lluvias de diamante».","#3e5fd1"],["Atmósfera","Hidrógeno, helio y metano.","#6c8cff"]]],
+  atmosfera:["Vientos supersónicos",["En Neptuno soplan los vientos más rápidos medidos en el sistema solar, hasta 2,100 km/h.","La Voyager 2 vio en 1989 la Gran Mancha Oscura, una tormenta del tamaño de la Tierra; años después ya había desaparecido y han surgido otras.","Irradia 2.6 veces más energía de la que recibe del Sol: su interior sigue caliente."]],
+  orbita:["En el borde",["Tarda 164.8 años en dar una vuelta. Más allá está el cinturón de Kuiper, donde vive Plutón, que entra y sale en resonancia con Neptuno: da dos vueltas por cada tres de Neptuno y nunca chocan.","Por momentos Plutón queda más cerca del Sol que Neptuno; ocurrió entre 1979 y 1999."]],
+  lunas:["16 lunas",[["Tritón","Gira al revés de la rotación de Neptuno: probablemente fue un objeto del cinturón de Kuiper capturado. Tiene géiseres de nitrógeno y es de los lugares más fríos medidos, −235 °C."],["Nereida","Con una de las órbitas más alargadas de cualquier luna."],["Proteo","Casi tan grande como puede ser un cuerpo sin volverse esférico por su gravedad."]]],
+  exploracion:["Visitas a Neptuno",[["1989","Voyager 2","La única nave que lo ha visitado, tras 12 años de viaje."],["2022","Telescopio James Webb","Tomó la imagen más nítida de sus anillos en más de 30 años.",1]]],
+  curiosidades:["Para asombrarse",["Galileo lo vio en 1612 y lo anotó como estrella, sin saber lo que era.","Un año en Neptuno dura casi 165 años terrestres.","La luz del Sol tarda más de 4 horas en llegar hasta él.","Tritón se acerca poco a poco y algún día se romperá formando un gran anillo."]],
+  observar:["Cómo encontrarlo",["No se ve a simple vista (magnitud 7.8). Con binoculares y una carta celeste aparece como una estrellita azulada.","Con telescopio de 150 mm o más se distingue un diminuto disco azul. Fotografiarlo noche tras noche y ver cómo se mueve es la mejor prueba de que es un planeta."]]
+ }},
+{id:"pluton", num:"♇", nombre:"Plutón", lat:"Pluto · Hades", tipo:"Planeta enano", au:39.48, g:.62, d:2377, rot:-6.39, tilt:122.5, glow:"#dcc7a8",
+ lead:"Fue el noveno planeta durante 76 años. Hoy es el rey del cinturón de Kuiper: un mundo helado con montañas de hielo de agua y un enorme corazón de nitrógeno congelado.",
+ facts:[["Distancia","39.5 UA"],["Diámetro","2,377 km"],["Año","248 años"],["Lunas","5"]],
+ ficha:[["Distancia media","5,906 millones km"],["Diámetro","2,377 km (0.19 Tierras)"],["Masa","0.0022 Tierras"],["Gravedad","0.62 m/s² (0.06 g)"],["Rotación","6.4 días, retrógrada"],["Año","248 años"],["Inclinación del eje","122.5°"],["Temperatura","−230 °C"],["Clasificación","Planeta enano (desde 2006)"],["Lunas","5"]],
+ vert:["Distancia al Sol","39.5 UA"], vertR:["Descubierto","18 de febrero de 1930"], coord:["Corazón Tombaugh","~1,600 km de ancho"],
+ tabs:{
+  panorama:["El pequeño gigante del hielo",["Clyde Tombaugh, un joven de 24 años, lo descubrió en 1930 comparando fotografías del cielo en el Observatorio Lowell. El nombre lo propuso Venetia Burney, una niña inglesa de 11 años.","En 2006 la Unión Astronómica Internacional definió qué es un planeta: debe orbitar el Sol, ser redondo y haber «limpiado» su órbita. Plutón comparte su zona con miles de objetos del cinturón de Kuiper, así que pasó a ser planeta enano.","Cuando la nave New Horizons pasó junto a él en 2015, todos esperaban una bola de hielo muerta. Encontró un mundo activo: glaciares que fluyen, montañas de 3,500 metros y una atmósfera azul en capas."]],
+  estructura:["Por dentro",[["Núcleo rocoso","Ocupa cerca del 70% del diámetro.","#9b8a74"],["Océano oculto","Posible océano de agua líquida bajo el hielo, mantenido por calor interno.","#4f7fb8"],["Manto de hielo de agua","Tan duro a −230 °C que se comporta como roca.","#cfd8e6"],["Superficie","Hielos de nitrógeno, metano y monóxido de carbono, teñidos de rojizo por compuestos orgánicos llamados tolinas.","#dcc7a8"]]],
+  atmosfera:["Una atmósfera que va y viene",["Tiene una atmósfera tenue de nitrógeno, metano y monóxido de carbono, unas 100,000 veces más delgada que la terrestre. Forma capas de neblina azul de más de 200 km de altura.","Cuando se aleja del Sol, gran parte de esa atmósfera se congela y cae como escarcha sobre la superficie."]],
+  orbita:["Una órbita rebelde",["Su órbita está inclinada 17° y es muy alargada: va de 30 a 49 UA del Sol. Entre 1979 y 1999 estuvo más cerca del Sol que Neptuno.","Aún no ha completado una vuelta desde su descubrimiento: lo hará en 2178."]],
+  lunas:["5 lunas",[["Caronte","La mitad del tamaño de Plutón. Ambos giran uno alrededor del otro mostrándose siempre la misma cara, como un sistema doble."],["Nix e Hidra","Pequeñas y alargadas, giran de forma caótica."],["Cerbero y Estigia","Diminutas, de 10 a 20 km."]]],
+  exploracion:["Visitas a Plutón",[["1930","Descubrimiento","Clyde Tombaugh lo encuentra en placas fotográficas."],["1978","Caronte","James Christy descubre su luna mayor."],["2015","New Horizons","El 14 de julio pasa a 12,500 km de su superficie tras nueve años y medio de viaje. Hoy sigue viajando por el cinturón de Kuiper.",1]]],
+  curiosidades:["Para asombrarse",["Plutón es más pequeño que nuestra Luna.","Su corazón se llama Tombaugh Regio en honor a su descubridor.","Desde Plutón, el Sol se vería como una estrella muy brillante, unas 1,000 veces más tenue que desde la Tierra.","Parte de las cenizas de Clyde Tombaugh viajan a bordo de New Horizons."]],
+  observar:["Cómo encontrarlo",["Está fuera del alcance de la vista y de los binoculares: brilla con magnitud 14. Se necesita un telescopio de al menos 250 mm, una carta precisa y paciencia.","La mejor forma de «verlo» desde casa es fotografiar la misma zona del cielo varias noches y buscar el punto que se movió, igual que hizo Tombaugh."]]
+ }}
+];
+const NUM = { // masa (Tierras), día (horas), año (días), temperatura media (°C), lunas
+  sol:[333000, 609, null, 5500, null], mercurio:[.055, 1407.6, 88, 167, 0], venus:[.815, 5832.5, 224.7, 464, 0], tierra:[1, 23.93, 365.25, 15, 1],
+  luna:[.0123, 655.7, 27.3, -20, 0], marte:[.107, 24.62, 687, -63, 2], jupiter:[317.8, 9.93, 4333, -110, 97], saturno:[95.2, 10.66, 10759, -140, 274],
+  urano:[14.5, 17.24, 30687, -195, 29], neptuno:[17.1, 16.11, 60190, -200, 16], pluton:[.0022, 153.3, 90560, -230, 5]};
+const TABS = [["panorama","Panorama"],["estructura","Estructura"],["atmosfera","Atmósfera y clima"],["orbita","Órbita"],["lunas","Lunas"],["exploracion","Exploración"],["curiosidades","Curiosidades"],["observar","Cómo observarlo"]];
+
+/* ================= ESTRELLAS DE FONDO ================= */
+const sc = $("#stars"), sx = sc.getContext("2d");
+let stars = [];
+function sizeStars(){
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  sc.width = innerWidth * dpr; sc.height = innerHeight * dpr; sx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const n = Math.round(innerWidth * innerHeight / 2600);
+  stars = Array.from({length:n}, () => ({x:Math.random() * innerWidth, y:Math.random() * innerHeight, r:Math.random() ** 3 * 1.4 + .25, p:Math.random() * 6.28, s:.5 + Math.random() * 1.5}));
+}
+function drawStars(t){
+  sx.clearRect(0, 0, innerWidth, innerHeight);
+  for(const s of stars){ const a = reduced ? .7 : .45 + .45 * Math.sin(t / 1000 * s.s + s.p); sx.globalAlpha = a; sx.fillStyle = "#e9e4ff"; sx.beginPath(); sx.arc(s.x, s.y, s.r, 0, 6.283); sx.fill(); }
+  sx.globalAlpha = 1;
+}
+addEventListener("resize", () => { sizeStars(); sizePlanet(); sizeOrbit(); sizeOrr(); drawSize(); drawChart(); renderCmp(); });
+
+/* ================= RUIDO Y TEXTURAS ================= */
+function rng(seed){ return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
+function makeNoise(seed){
+  const r = rng(seed), P = new Uint8Array(512), G = new Float32Array(256);
+  for(let i = 0; i < 256; i++){ P[i] = i; G[i] = r(); }
+  for(let i = 255; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [P[i], P[j]] = [P[j], P[i]]; }
+  for(let i = 0; i < 256; i++) P[i + 256] = P[i];
+  const sm = t => t * t * (3 - 2 * t);
+  const n2 = (x, y) => { const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255, xf = x - Math.floor(x), yf = y - Math.floor(y);
+    const a = G[P[P[xi] + yi]], b = G[P[P[xi + 1] + yi]], c = G[P[P[xi] + yi + 1]], d = G[P[P[xi + 1] + yi + 1]], u = sm(xf), v = sm(yf);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; };
+  return (x, y, oct = 5) => { let s = 0, amp = .5, f = 1, n = 0; for(let i = 0; i < oct; i++){ s += amp * n2(x * f, y * f); n += amp; amp *= .5; f *= 2; } return s / n; };
+}
+const TW = 512, TH = 256;
+const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const ramp = (stops, t) => { t = Math.max(0, Math.min(1, t)); for(let i = 1; i < stops.length; i++){ if(t <= stops[i][0]){ const [t0, c0] = stops[i - 1], [t1, c1] = stops[i]; return mix(hex(c0), hex(c1), (t - t0) / (t1 - t0)); } } return hex(stops.at(-1)[1]); };
+const texCache = {};
+function texture(id){
+  if(texCache[id]) return texCache[id];
+  const N = makeNoise(id.length * 977 + id.charCodeAt(0) * 31), N2 = makeNoise(id.charCodeAt(1) * 131 + 7);
+  const out = new Uint8ClampedArray(TW * TH * 3);
+  const craters = [];
+  if(["mercurio", "luna", "marte"].includes(id)){ const r = rng(id.length * 101); for(let i = 0; i < (id === "marte" ? 40 : 160); i++) craters.push([r(), .1 + r() * .8, .004 + r() ** 3 * .05]); }
+  for(let y = 0; y < TH; y++){
+    const v = y / TH, lat = (v - .5) * Math.PI;
+    for(let x = 0; x < TW; x++){
+      const u = x / TW, cx = Math.cos(u * 6.283), sx2 = Math.sin(u * 6.283);
+      const nx = cx * 2 + 4, ny = sx2 * 2 + 4; // ruido sin costura en longitud
+      const cl = Math.cos(lat), Px = cl * cx, Py = cl * sx2, Pz = Math.sin(lat);
+      const s3 = (F, a, o) => (F(Px * a + Pz * a * .6 + 10, Py * a - Pz * a * .4 + 10, o) + F(Pz * a + Px * a * .5 + 30, Py * a * .8 - Px * a * .3 + 30, o)) / 2;
+      const n = (a, b, o) => s3(N, a * 1.6, o);
+      let c;
+      if(id === "sol"){ const t = .5 + (s3(N, 6, 5) - .5) * 2.2 + (s3(N2, 18, 3) - .5) * .8; c = ramp([[0, "#c2410c"], [.45, "#f97316"], [.6, "#fbbf24"], [.8, "#fde68a"], [1, "#fff7d6"]], t * 1.25 - .05); }
+      else if(id === "mercurio" || id === "luna"){
+        let t = .5 + (n(2.4, 6, 6) - .5) * 1.6;
+        if(id === "luna"){ const m = s3(N2, 1.8, 4); if(m > .56 && Math.abs(lat) < 1.1) t -= (m - .56) * 2.6; }
+        c = ramp(id === "luna" ? [[0, "#4b4a48"], [.4, "#8a8781"], [.7, "#bdb9b0"], [1, "#e8e5de"]] : [[0, "#4a4440"], [.45, "#86807a"], [.7, "#a9a39b"], [1, "#d3cdc2"]], t);
+      }
+      else if(id === "venus"){ const w = N(nx * 1.4 + v * 4, ny * 1.4, 4); const t = .5 + .5 * Math.sin(v * 20 + w * 7); c = ramp([[0, "#b88a4a"], [.5, "#e2c28a"], [1, "#f8ebc8"]], t * .7 + w * .4); }
+      else if(id === "tierra"){
+        const land = .5 + (s3(N, 2.2, 6) - .5) * 1.7, clo = s3(N2, 4, 5), pol = Math.abs(lat) > 1.25 - (land - .5) * .3;
+        if(pol) c = [236, 242, 246];
+        else if(land > .53){ const dry = s3(N2, 5, 4) + Math.max(0, .35 - Math.abs(Math.abs(lat) - .42)) ; c = ramp([[0, "#2f6b3a"], [.5, "#557a3a"], [.75, "#a88b5a"], [1, "#d8c49a"]], dry); }
+        else c = ramp([[0, "#071d4a"], [.6, "#0f3b7a"], [1, "#2a6fb0"]], land / .53);
+        if(clo > .53){ const a = Math.min(1, (clo - .53) * 5); c = mix(c, [250, 252, 255], a * .9); }
+      }
+      else if(id === "marte"){ const t = .5 + (n(2, 5, 6) - .5) * 1.6, d = s3(N2, 2, 4); c = ramp([[0, "#5a2412"], [.4, "#a4472a"], [.65, "#c9693f"], [1, "#e6a477"]], t + (d > .55 ? -.25 : 0)); if(Math.abs(lat) > 1.33) c = mix(c, [245, 240, 232], Math.min(1, (Math.abs(lat) - 1.33) * 7)); }
+      else if(id === "jupiter"){
+        const w = N(nx * 2 + v * 6, ny * 2, 5), b = Math.sin(v * 46 + w * 3.5);
+        c = ramp([[0, "#8a5a3c"], [.35, "#b07a52"], [.55, "#d8b48c"], [.8, "#efe0c4"], [1, "#fbf4e6"]], .5 + .38 * b + (w - .5) * .5);
+        const du = Math.min(Math.abs(u - .3), 1 - Math.abs(u - .3)), dv = v - .64, e = (du / .07) ** 2 + (dv / .035) ** 2;
+        if(e < 1){ const sw = N2(du * 40, dv * 60, 3); c = mix(c, mix([180, 70, 45], [214, 120, 80], sw), Math.min(1, (1 - e) * 2.2)); }
+      }
+      else if(id === "saturno"){ const w = N(nx * 1.5 + v * 5, ny * 1.5, 4), b = Math.sin(v * 38 + w * 2); c = ramp([[0, "#a8865a"], [.5, "#dcc492"], [1, "#f4e7c4"]], .55 + .3 * b + (w - .5) * .3); if(v < .1) c = mix(c, [150, 160, 150], (.1 - v) * 6); }
+      else if(id === "urano"){ const w = N(nx * 1.2 + v * 4, ny * 1.2, 3); c = ramp([[0, "#6cc4cf"], [.6, "#a3e2e6"], [1, "#d4f5f3"]], .5 + .12 * Math.sin(v * 24) + (w - .5) * .3 + (v < .22 ? (.22 - v) * 1.6 : 0)); }
+      else if(id === "pluton"){
+        const t = .5 + (s3(N, 3, 6) - .5) * 1.5; c = ramp([[0, "#5c3a28"], [.4, "#a0765a"], [.7, "#d4b896"], [1, "#efe2cf"]], t);
+        let du = Math.abs(u - .55); du = Math.min(du, 1 - du); const hv = v - .56, hx = du / .085, hy = hv / .12;
+        const heart = (hx * hx + hy * hy) < 1 || ((du - .05) / .07) ** 2 + ((hv + .04) / .1) ** 2 < 1;
+        if(heart) c = mix(c, [246, 238, 226], .85);
+        let dd = Math.abs(u - .25); dd = Math.min(dd, 1 - dd); if(dd < .12 && Math.abs(v - .57) < .06 + .02 * Math.sin(u * 40)) c = mix(c, [70, 36, 26], .5);
+      }
+      else { // neptuno
+        const w = N(nx * 1.8 + v * 5, ny * 1.8, 5), st = N2(nx * 6 + v * 2, ny * 6, 3);
+        c = ramp([[0, "#13267a"], [.45, "#2747b8"], [.8, "#4a78e0"], [1, "#9cb8ff"]], .5 + .18 * Math.sin(v * 30 + w * 4) + (w - .5) * .5);
+        if(st > .7 && Math.abs(v - .4) < .2) c = mix(c, [235, 242, 255], (st - .7) * 3);
+        const du = Math.min(Math.abs(u - .62), 1 - Math.abs(u - .62)), dv = v - .62, e = (du / .05) ** 2 + (dv / .03) ** 2; if(e < 1) c = mix(c, [10, 20, 60], (1 - e) * .8);
+      }
+      if(craters.length){ for(const [cu, cv, cr] of craters){ let du = Math.abs(u - cu); du = Math.min(du, 1 - du); du *= Math.cos(lat); const dd = Math.hypot(du, (v - cv) * .5) / cr; if(dd < 1.15){ const k = dd < .85 ? -.16 * (1 - dd) : .18 * (1.15 - dd) / .3; c = mix(c, k < 0 ? [20, 18, 16] : [255, 250, 240], Math.abs(k)); } } }
+      const i = (y * TW + x) * 3; out[i] = c[0]; out[i + 1] = c[1]; out[i + 2] = c[2];
+    }
+  }
+  return texCache[id] = out;
+}
+
+/* ================= ESFERA ================= */
+const pc = $("#planet"), px = pc.getContext("2d");
+let modo = "sup", off = null, offx = null, PD = 0, img = null, geo = null, cur = 0, rotOff = 0, drag = null, vel = 0;
+const SPH = .62; // fracción del lienzo que ocupa el planeta
+function sizePlanet(){
+  const box = pc.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 1.6);
+  PD = Math.max(200, Math.round(box.width * dpr)); pc.width = pc.height = PD; img = null; geo = null;
+}
+function buildGeo(b){
+  const R = Math.round(PD * SPH / 2 * ({sol:1.08, saturno:.64, urano:.78}[b.id] || 1)), D = Math.ceil(R * 2), tilt = (b.tilt % 180) * Math.PI / 180 * (b.id === "urano" ? 1 : 1);
+  const ct = Math.cos(tilt * (b.id === "urano" ? 1 : .35)), st = Math.sin(tilt * (b.id === "urano" ? 1 : .35));
+  const lon = new Float32Array(D * D), latI = new Int16Array(D * D).fill(-1), sh = new Float32Array(D * D);
+  const L = [-.62, -.38, .69], ln = Math.hypot(...L); L[0] /= ln; L[1] /= ln; L[2] /= ln;
+  for(let y = 0; y < D; y++) for(let x = 0; x < D; x++){
+    const X = (x + .5 - R) / R, Y = (y + .5 - R) / R, rr = X * X + Y * Y; if(rr > 1) continue;
+    const Z = Math.sqrt(1 - rr);
+    // inclinar el eje (rotación en z)
+    const Xt = X * ct + Y * st, Yt = -X * st + Y * ct;
+    const k = y * D + x;
+    lon[k] = Math.atan2(Xt, Z) / (2 * Math.PI) + .5;
+    latI[k] = Math.min(TH - 1, Math.max(0, Math.round((Math.asin(Math.max(-1, Math.min(1, Yt))) / Math.PI + .5) * (TH - 1))));
+    if(b.id === "sol") sh[k] = .55 + .45 * Math.pow(Z, .45);
+    else { const d = X * L[0] + Y * L[1] + Z * L[2]; sh[k] = Math.max(0, d) * .96 + .045 + .08 * Math.pow(1 - Z, 3) * (d > -.2 ? 1 : 0); }
+  }
+  geo = {R, D, lon, latI, sh}; img = px.createImageData(D, D); off = document.createElement("canvas"); off.width = off.height = D; offx = off.getContext("2d");
+}
+function ringLayer(b, R, front){
+  const T = b.id === "urano" ? 1.62 : .47, sq = b.id === "urano" ? .2 : .3, sat = b.id === "saturno";
+  px.save(); px.translate(PD / 2, PD / 2); px.rotate(b.id === "urano" ? -1.47 : -.42); px.scale(1, sq);
+  px.beginPath(); front ? px.rect(-PD, 0, PD * 2, PD) : px.rect(-PD, -PD, PD * 2, PD); px.clip();
+  const bands = sat ? [[1.24, 1.52, .55, "#bfa57a"], [1.53, 1.95, .9, "#e9d8b0"], [1.95, 2.02, .08, "#333"], [2.02, 2.28, .7, "#d4c09a"], [2.3, 2.33, .4, "#c9b38e"]] : [[1.6, 1.64, .45, "#c8eef0"], [1.9, 1.93, .6, "#e6fbff"], [2.0, 2.02, .3, "#c8eef0"]];
+  for(const [a, z, al, col] of bands){ px.globalAlpha = al; px.strokeStyle = col; px.lineWidth = (z - a) * R; px.beginPath(); px.arc(0, 0, (a + z) / 2 * R, 0, 6.283); px.stroke(); }
+  px.restore(); px.globalAlpha = 1;
+}
+function drawPlanet(){
+  const b = B[cur]; if(!PD) return;
+  if(!geo) buildGeo(b);
+  const tex = texture(b.id), {R, D, lon, latI, sh} = geo, data = img.data;
+  for(let k = 0, n = D * D; k < n; k++){
+    const li = latI[k], o = k * 4; if(li < 0){ data[o + 3] = 0; continue; }
+    let u = lon[k] + rotOff; u -= Math.floor(u);
+    const ti = (li * TW + ((u * TW) | 0)) * 3, s = sh[k];
+    data[o] = tex[ti] * s; data[o + 1] = tex[ti + 1] * s; data[o + 2] = tex[ti + 2] * s; data[o + 3] = 255;
+  }
+  px.clearRect(0, 0, PD, PD);
+  const cx = PD / 2;
+  // halo
+  const halo = px.createRadialGradient(cx, cx, R * .9, cx, cx, R * (b.id === "sol" ? 1.9 : 1.32));
+  halo.addColorStop(0, b.glow + (b.id === "sol" ? "aa" : "55")); halo.addColorStop(1, b.glow + "00");
+  px.fillStyle = halo; px.beginPath(); px.arc(cx, cx, R * 2, 0, 6.283); px.fill();
+  if(b.rings) ringLayer(b, R, false);
+  offx.putImageData(img, 0, 0); px.drawImage(off, Math.round(cx - D / 2), Math.round(cx - D / 2));
+  if(b.id !== "sol" && !b.moon && b.id !== "mercurio"){ // atmósfera en el borde
+    const at = px.createRadialGradient(cx, cx, R * .82, cx, cx, R * 1.03); at.addColorStop(0, b.glow + "00"); at.addColorStop(.85, b.glow + "40"); at.addColorStop(1, b.glow + "00");
+    px.fillStyle = at; px.beginPath(); px.arc(cx, cx, R * 1.03, 0, 6.283); px.fill();
+  }
+  if(b.rings) ringLayer(b, R, true);
+  if(modo === "int"){
+    const capas = b.tabs.estructura[1], n = capas.length, ox0 = cx;
+    px.save(); px.beginPath(); px.moveTo(ox0, ox0); px.arc(ox0, ox0, R + 1, -Math.PI / 2, 0); px.closePath(); px.clip();
+    for(let i = n - 1; i >= 0; i--){
+      const rr = R * Math.pow((n - i) / n, .85);
+      const g = px.createRadialGradient(ox0 - rr * .2, ox0 - rr * .2, rr * .1, ox0, ox0, rr); g.addColorStop(0, capas[n - 1 - i][2]); g.addColorStop(1, shade(capas[n - 1 - i][2], -.25));
+      px.fillStyle = g; px.beginPath(); px.arc(ox0, ox0, rr, 0, 6.283); px.fill();
+      px.strokeStyle = "rgba(6,10,29,.5)"; px.lineWidth = 1; px.stroke();
+    }
+    // números sobre cada capa
+    px.font = `600 ${Math.round(R * .07)}px Spectral, Georgia, serif`; px.textAlign = "center"; px.textBaseline = "middle";
+    for(let i = 0; i < n; i++){
+      const r0 = i === 0 ? 0 : R * Math.pow(i / n, .85), r1 = R * Math.pow((i + 1) / n, .85), rm = (r0 + r1) / 2, a = -Math.PI / 4;
+      px.fillStyle = "rgba(6,10,29,.85)"; px.beginPath(); px.arc(ox0 + Math.cos(a) * rm, ox0 + Math.sin(a) * rm, R * .055, 0, 6.283); px.fill();
+      px.fillStyle = "#fff4dc"; px.fillText(String(i + 1), ox0 + Math.cos(a) * rm, ox0 + Math.sin(a) * rm + 1);
+    }
+    px.restore();
+    px.strokeStyle = "rgba(255,244,220,.6)"; px.lineWidth = 1.2; px.beginPath(); px.moveTo(ox0, ox0 - R); px.lineTo(ox0, ox0); px.lineTo(ox0 + R, ox0); px.stroke();
+  }
+}
+function shade(h, k){ const c = hex(h).map(v => Math.max(0, Math.min(255, Math.round(v * (1 + k))))); return `rgb(${c[0]},${c[1]},${c[2]})`; }
+const spin = b => b.id === "sol" ? .00006 : Math.sign(b.rot) * Math.min(.0006, .00035 / Math.max(.4, Math.abs(b.rot) ** .35));
+pc.addEventListener("pointerdown", e => { drag = {x:e.clientX, o:rotOff}; vel = 0; pc.setPointerCapture(e.pointerId); pc.classList.add("drag"); });
+pc.addEventListener("pointermove", e => { if(!drag) return; const dx = e.clientX - drag.x; const no = drag.o - dx / pc.clientWidth * .5; vel = no - rotOff; rotOff = no; });
+const endDrag = () => { drag = null; pc.classList.remove("drag"); };
+pc.addEventListener("pointerup", endDrag); pc.addEventListener("pointercancel", endDrag);
+
+/* ================= MAPA DE ÓRBITAS ================= */
+const oc = $("#orbit"), ox = oc.getContext("2d"); let OS = 210;
+const orbPlan = B.filter(b => b.au && !b.moon);
+function sizeOrbit(){ const dpr = Math.min(devicePixelRatio || 1, 2); OS = oc.clientWidth; oc.width = OS * dpr; oc.height = OS * dpr; ox.setTransform(dpr, 0, 0, dpr, 0, 0); }
+const rOrb = au => 14 + Math.sqrt(au) * (OS / 2 - 18) / Math.sqrt(39.48);
+let orbPos = [];
+function drawOrbit(t){
+  ox.clearRect(0, 0, OS, OS); const c = OS / 2, sel = B[cur];
+  ox.fillStyle = "#ffd36e"; ox.shadowColor = "#ffb347"; ox.shadowBlur = sel.id === "sol" ? 18 : 8; ox.beginPath(); ox.arc(c, c, sel.id === "sol" ? 6 : 4.5, 0, 6.283); ox.fill(); ox.shadowBlur = 0;
+  orbPos = [{id:"sol", x:c, y:c}];
+  for(const b of orbPlan){
+    const r = rOrb(b.au), on = b.id === sel.id || (sel.id === "luna" && b.id === "tierra");
+    ox.strokeStyle = on ? "rgba(217,184,114,.85)" : "rgba(236,230,214,.16)"; ox.lineWidth = on ? 1.1 : .7; ox.beginPath(); ox.arc(c, c, r, 0, 6.283); ox.stroke();
+    const yr = b.au ** 1.5, a = (reduced ? 0 : t / 1000 * .5 / yr) + b.d % 7;
+    const x = c + Math.cos(a) * r, y = c + Math.sin(a) * r; orbPos.push({id:b.id, x, y});
+    ox.fillStyle = on ? "#fff4dc" : "rgba(236,230,214,.6)"; ox.beginPath(); ox.arc(x, y, on ? 3.6 : 2.2, 0, 6.283); ox.fill();
+    if(on){ ox.strokeStyle = "rgba(217,184,114,.9)"; ox.beginPath(); ox.arc(x, y, 7, 0, 6.283); ox.stroke(); }
+  }
+}
+oc.addEventListener("click", e => { const r = oc.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  let best = null, bd = 16; for(const p of orbPos){ const d = Math.hypot(p.x - x, p.y - y); if(d < bd){ bd = d; best = p; } }
+  if(best) select(B.findIndex(b => b.id === best.id)); });
+
+/* ================= TAMAÑO ================= */
+const zc = $("#size"), zx = zc.getContext("2d");
+function drawSize(){
+  const dpr = Math.min(devicePixelRatio || 1, 2), W = zc.clientWidth, H = zc.clientHeight; zc.width = W * dpr; zc.height = H * dpr; zx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  zx.clearRect(0, 0, W, H); const b = B[cur], ratio = b.d / 12742, maxR = H / 2 - 12;
+  let rp, re; if(ratio >= 1){ rp = maxR; re = Math.max(maxR / ratio, 1.2); } else { re = maxR; rp = Math.max(maxR * ratio, 1.5); }
+  const ce = W - re - 10, cp = Math.max(rp + 8, ce - re - rp - 22);
+  const big = rp > W * .7;
+  const g = zx.createRadialGradient(cp - rp * .3, H / 2 - rp * .3, rp * .1, cp, H / 2, rp); g.addColorStop(0, b.glow); g.addColorStop(1, "#1a1f3d");
+  zx.fillStyle = g; zx.beginPath(); big ? zx.arc(-rp + W * .55, H / 2, rp, 0, 6.283) : zx.arc(cp, H / 2, rp, 0, 6.283); zx.fill();
+  zx.fillStyle = "#4f8fe8"; zx.beginPath(); zx.arc(ce, H / 2, re, 0, 6.283); zx.fill();
+  zx.font = "500 9px Cinzel, Georgia, serif"; zx.fillStyle = "#9aa3c4"; zx.textAlign = "center";
+  zx.textAlign = ce > W - 30 ? "right" : "center"; zx.fillText("TIERRA", ce > W - 30 ? W - 2 : ce, H / 2 + re + 12);
+  $("#sizeCap").textContent = b.id === "tierra" ? "Nuestro planeta: 12,742 km de diámetro." : ratio >= 1 ? `${b.nombre} es ${nf(ratio, ratio < 10 ? 1 : 0)} veces más ancho que la Tierra.` : `${b.nombre} mide ${nf(ratio * 100)}% del ancho de la Tierra.`;
+}
+
+/* ================= SELECCIÓN ================= */
+const sel = $("#sel");
+B.forEach((b, i) => { const bt = document.createElement("button"); bt.type = "button"; bt.innerHTML = b.num; bt.title = b.nombre; bt.setAttribute("aria-label", b.nombre); bt.addEventListener("click", () => select(i)); sel.appendChild(bt); });
+let tab = "panorama";
+function luzTxt(b){
+  if(b.id === "luna") return `<b>1.28 segundos</b>de la Tierra a la Luna. Desde el Sol: 8 min 20 s.`;
+  if(b.id === "sol") return `<b>8 min 20 s</b>del Sol a la Tierra. Hasta Neptuno, más de 4 horas.`;
+  const s = b.au * 499, h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sg = Math.round(s % 60);
+  const t = h ? `${h} h ${m} min` : m ? `${m} min ${sg} s` : `${sg} s`;
+  const km = b.au * 149.6e6, años = km / 100 / 24 / 365.25;
+  return `<b>${t}</b>en llegar del Sol a ${b.nombre}. En auto a 100 km/h tardarías unos ${nf(años)} años.`;
+}
+let tickI = 0;
+setInterval(() => { const t = $("#tick"); if(!t || reduced) return; const L = B[cur].tabs.curiosidades[1]; tickI = (tickI + 1) % L.length; t.classList.add("fade"); setTimeout(() => { t.textContent = L[tickI]; t.classList.remove("fade"); }, 500); }, 7000);
+function renderCapas(){
+  const el = $("#capas"), b = B[cur];
+  el.hidden = modo !== "int";
+  if(modo === "int"){ const c = b.tabs.estructura[1]; el.innerHTML = c.map(([n, d, col]) => `<li style="--c:${col}" title="${d}">${n}</li>`).join("") + `<small>Esquema, no a escala. Del centro hacia fuera.</small>`; }
+}
+document.querySelector(".mode").addEventListener("click", e => { const bt = e.target.closest("[data-mode]"); if(!bt) return; modo = bt.dataset.mode; document.querySelectorAll(".mode button").forEach(x => x.classList.toggle("on", x === bt)); renderCapas(); });
+function renderTxt(b){
+  $("#txt").innerHTML = `<div class="eyebrow caps"><i></i>${b.num} · ${b.tipo}</div><h1>${b.nombre}</h1><div class="lat">${b.lat}</div>
+    <p class="lead">${b.lead}</p><div class="facts">${b.facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
+    <a class="go" href="#expediente">Abrir expediente completo →</a>
+    <div class="ticker"><span class="caps">¿Sabías que…?</span><p id="tick">${b.tabs.curiosidades[1][0]}</p></div>`;
+  tickI = 0;
+  $("#vertL").innerHTML = `${b.vert[0]} · <b>${b.vert[1]}</b>`;
+  $("#vertR").innerHTML = `${b.vertR[0]} · <b>${b.vertR[1]}</b>`;
+  $("#coord").innerHTML = `${b.coord[0]}<b>${b.coord[1]}</b>`;
+}
+function renderDossier(){
+  const b = B[cur];
+  $("#dosTitle").innerHTML = `Expediente de <em>${b.nombre}</em>`; $("#dosSub").textContent = b.tipo;
+  $("#tabs").innerHTML = TABS.map(([k, t]) => `<button type="button" role="tab" class="${k === tab ? "on" : ""}" aria-selected="${k === tab}" data-tab="${k}">${t}</button>`).join("");
+  const [tit, body] = b.tabs[tab]; let h = `<h3>${tit}</h3>`;
+  if(tab === "estructura") h += `<ul class="layers">${body.map(([n, d, c]) => `<li style="--c:${c}"><i></i><div><b>${n}</b><span>${d}</span></div></li>`).join("")}</ul>`;
+  else if(tab === "lunas") h += `<div class="moons">${body.map(([n, d]) => `<div class="moon"><b>${n}</b><small>${b.id === "sol" ? "Familia solar" : "Satélite"}</small><p>${d}</p></div>`).join("")}</div>`;
+  else if(tab === "exploracion") h += `<ul class="timeline">${body.map(([y, n, d, now]) => `<li class="${now ? "now" : ""}"><b>${y}</b><strong>${n}</strong><span>${d}</span></li>`).join("")}</ul>`;
+  else if(tab === "curiosidades") h += `<ol class="curios">${body.map(x => `<li>${x}</li>`).join("")}</ol>`;
+  else h += body.map((p, i) => `<p class="${i === 0 && tab === "panorama" ? "big" : ""}">${p}</p>`).join("");
+  const pn = $("#panel"); pn.innerHTML = h; pn.style.animation = "none"; void pn.offsetWidth; pn.style.animation = "";
+  $("#ficha").innerHTML = b.ficha.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  $("#luz").innerHTML = luzTxt(b);
+  peso(); drawSize();
+  $("#faseCard").hidden = !["luna", "tierra"].includes(b.id); if(!$("#faseCard").hidden) drawFase();
+}
+function faseLunar(t = Date.now()){
+  const P = 29.530588, age = (((t - Date.UTC(2000, 0, 6, 18, 14)) / 864e5) % P + P) % P, ilum = (1 - Math.cos(2 * Math.PI * age / P)) / 2;
+  const nombres = [[1.85, "Luna nueva"], [5.53, "Creciente"], [9.22, "Cuarto creciente"], [12.91, "Gibosa creciente"], [16.61, "Luna llena"], [20.3, "Gibosa menguante"], [23.99, "Cuarto menguante"], [27.68, "Menguante"], [30, "Luna nueva"]];
+  return {age, ilum, nombre:nombres.find(n => age < n[0])[1], P};
+}
+function drawFase(){
+  const c = $("#faseC"), dpr = Math.min(devicePixelRatio || 1, 2), S = 84; c.width = c.height = S * dpr; const x = c.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const f = faseLunar(), r = 36, m = S / 2;
+  x.fillStyle = "#1b2140"; x.beginPath(); x.arc(m, m, r, 0, 6.283); x.fill();
+  const k = Math.cos(2 * Math.PI * f.age / f.P), creciente = f.age < f.P / 2;
+  x.fillStyle = "#ece6d6"; x.beginPath();
+  x.arc(m, m, r, -Math.PI / 2, Math.PI / 2, !creciente);
+  x.ellipse(m, m, Math.abs(k) * r, r, 0, Math.PI / 2, -Math.PI / 2, (k > 0) === creciente);
+  x.fill();
+  const prox = Math.round((f.age < 14.77 ? 14.77 - f.age : f.P - f.age + 14.77));
+  $("#faseT").innerHTML = `<b>${f.nombre}</b><span>${Math.round(f.ilum * 100)}% iluminada · ${f.age.toFixed(1)} días de edad. Próxima luna llena en unos ${prox} días.</span>`;
+}
+function peso(){
+  const b = B[cur], kg = Math.max(0, parseFloat($("#kg").value) || 0), r = b.g / 9.81;
+  $("#pesoRes").innerHTML = `${nf(kg * r, 1)}<small>kg</small>`;
+  $("#pesoTxt").textContent = b.id === "sol" ? "Si pudieras pararte en su superficie, la gravedad te aplastaría: 28 veces la terrestre." : b.id === "tierra" ? "Tu peso de siempre." : r > 1 ? `Te sentirías ${nf(r, 2)} veces más pesado.` : `Podrías saltar ${nf(1 / r, 1)} veces más alto.`;
+}
+$("#kg").addEventListener("input", peso);
+$("#tabs").addEventListener("click", e => { const t = e.target.closest("[data-tab]"); if(!t) return; tab = t.dataset.tab; renderDossier(); });
+$("#tabs").addEventListener("keydown", e => { if(!["ArrowRight", "ArrowLeft"].includes(e.key)) return; const i = TABS.findIndex(x => x[0] === tab); tab = TABS[(i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length][0]; renderDossier(); $("#tabs .on").focus(); });
+
+let busy = false;
+function select(i, first){
+  if(i === cur && !first) return;
+  [...sel.querySelectorAll("button")].forEach((bt, j) => bt.classList.toggle("on", j === i));
+  try { history.replaceState(null, "", "#" + B[i].id); } catch {}
+  const apply = () => { cur = i; geo = null; rotOff = 0; renderTxt(B[i]); renderDossier(); renderCapas(); $("#planet").setAttribute("aria-label", B[i].nombre + " girando"); };
+  if(first || reduced){ apply(); return; }
+  busy = true; pc.classList.add("out"); $("#txt").classList.add("out");
+  setTimeout(() => { apply(); requestAnimationFrame(() => { pc.classList.remove("out"); $("#txt").classList.remove("out"); busy = false; }); }, 420);
+}
+addEventListener("keydown", e => { if(e.target.matches("input, [role=tab]")) return; if(e.key === "ArrowRight") select((cur + 1) % B.length); if(e.key === "ArrowLeft") select((cur + B.length - 1) % B.length); });
+
+/* ================= CONSTELACIONES ================= */
+const C = [
+ {id:"orion", nombre:"Orión", lat:"Orion · el Cazador", epoca:"Diciembre a marzo", hem:"Ecuatorial, visible desde todo el mundo", area:"594 grados²",
+  txt:["El cazador gigante de la mitología griega, hijo de Poseidón. Es la constelación más reconocible del cielo: sus tres estrellas alineadas forman el Cinturón, que en México se conoce como «los Tres Reyes Magos».","Bajo el cinturón cuelga la «espada», donde brilla la Nebulosa de Orión (M42), una guardería de estrellas a 1,344 años luz visible a simple vista como una mancha difusa.","Betelgeuse, el hombro rojo, es una supergigante que algún día explotará como supernova y podría verse de día durante semanas."],
+  s:[["Betelgeuse",5.92,7.41,.5,"#ffb27a","Supergigante roja · 550 a.l."],["Rigel",5.24,-8.2,.13,"#bcd4ff","Supergigante azul · 860 a.l."],["Bellatrix",5.42,6.35,1.6,"#d6e2ff","Gigante azul · 250 a.l."],["Mintaka",5.53,-.3,2.2,"#d6e2ff","Estrella múltiple · 1,200 a.l."],["Alnilam",5.6,-1.2,1.7,"#d6e2ff","Supergigante azul · 2,000 a.l."],["Alnitak",5.68,-1.94,1.8,"#d6e2ff","Triple · 1,260 a.l."],["Saiph",5.8,-9.67,2.1,"#d6e2ff","Supergigante azul · 650 a.l."],["Meissa",5.59,9.93,3.4,"#e6ecff","Gigante · 1,100 a.l."]],
+  l:[[7,0],[7,2],[0,5],[2,3],[3,4],[4,5],[5,6],[3,1]]},
+ {id:"osamayor", nombre:"Osa Mayor", lat:"Ursa Major · el Carro", epoca:"Todo el año; mejor en primavera", hem:"Hemisferio norte (circumpolar al norte de 40°)", area:"1,280 grados²",
+  txt:["Sus siete estrellas más brillantes forman el Carro o la Cacerola, un asterismo que muchas culturas reconocen. Para los griegos era la ninfa Calisto convertida en osa por Hera.","Las dos estrellas del borde del cazo, Merak y Dubhe, señalan la Estrella Polar: prolonga cinco veces la distancia entre ellas y llegarás a ella, el norte verdadero.","Mizar y su compañera Alcor forman una pareja que se usaba como prueba de vista; con telescopio, Mizar resulta ser también doble."],
+  s:[["Dubhe",11.06,61.75,1.8,"#ffd2a1","Gigante naranja · 123 a.l."],["Merak",11.03,56.38,2.4,"#e6ecff","Blanca · 79 a.l."],["Phecda",11.9,53.69,2.4,"#e6ecff","Blanca · 83 a.l."],["Megrez",12.26,57.03,3.3,"#e6ecff","Blanca · 81 a.l."],["Alioth",12.9,55.96,1.8,"#e6ecff","Blanca · 81 a.l."],["Mizar",13.4,54.93,2.2,"#e6ecff","Doble · 83 a.l."],["Alkaid",13.79,49.31,1.9,"#cfdcff","Azul · 104 a.l."]],
+  l:[[0,1],[1,2],[2,3],[3,0],[3,4],[4,5],[5,6]]},
+ {id:"casiopea", nombre:"Casiopea", lat:"Cassiopeia · la Reina", epoca:"Todo el año; mejor en otoño", hem:"Hemisferio norte", area:"598 grados²",
+  txt:["La reina vanidosa del mito de Perseo y Andrómeda, castigada a girar alrededor del polo, a veces de cabeza.","Su forma de W (o M, según la hora) es fácil de hallar al otro lado de la Estrella Polar respecto a la Osa Mayor: cuando una está baja, la otra está alta.","En 1572 Tycho Brahe vio aparecer ahí una «estrella nueva», una supernova que demostró que el cielo no era inmutable."],
+  s:[["Caph",.15,59.15,2.3,"#fff1d6","Gigante amarilla-blanca · 55 a.l."],["Schedar",.68,56.54,2.2,"#ffcf9a","Gigante naranja · 228 a.l."],["Gamma Cas",.95,60.72,2.4,"#cfdcff","Azul variable · 550 a.l."],["Ruchbah",1.43,60.24,2.7,"#e6ecff","Blanca · 99 a.l."],["Segin",1.91,63.67,3.4,"#cfdcff","Azul · 410 a.l."]],
+  l:[[0,1],[1,2],[2,3],[3,4]]},
+ {id:"escorpio", nombre:"Escorpio", lat:"Scorpius · el Escorpión", epoca:"Junio a agosto", hem:"Hemisferio sur; se ve bajo al sur desde México", area:"497 grados²",
+  txt:["El escorpión que, según el mito, mató a Orión. Por eso los dioses los pusieron en lados opuestos del cielo: cuando Escorpio sale, Orión se oculta.","En su corazón late Antares, «rival de Marte», una supergigante roja 700 veces más ancha que el Sol. Si estuviera en el lugar del Sol, llegaría más allá de la órbita de Marte.","Su cola curva se hunde en la parte más rica de la Vía Láctea, cerca del centro galáctico, llena de cúmulos como M6 y M7."],
+  s:[["Antares",16.49,-26.43,1.0,"#ff9a6a","Supergigante roja · 550 a.l."],["Acrab",16.09,-19.81,2.6,"#cfdcff","Azul · 400 a.l."],["Dschubba",16.01,-22.62,2.3,"#cfdcff","Azul · 490 a.l."],["Pi Sco",15.98,-26.11,2.9,"#cfdcff","Azul · 590 a.l."],["Al Niyat",16.35,-25.59,2.9,"#cfdcff","Azul · 700 a.l."],["Tau Sco",16.6,-28.22,2.8,"#cfdcff","Azul · 470 a.l."],["Larawag",16.84,-34.29,2.3,"#ffd2a1","Gigante naranja · 65 a.l."],["Mu Sco",16.86,-38.05,3.0,"#cfdcff","Azul · 500 a.l."],["Zeta Sco",16.9,-42.36,3.6,"#ffcf9a","Gigante · 2,600 a.l."],["Eta Sco",17.2,-43.24,3.3,"#fff1d6","Blanca · 72 a.l."],["Sargas",17.62,-43.0,1.9,"#fff1d6","Gigante amarilla · 300 a.l."],["Iota Sco",17.79,-40.13,3.0,"#fff1d6","Supergigante · 1,900 a.l."],["Kappa Sco",17.71,-39.03,2.4,"#cfdcff","Azul · 480 a.l."],["Shaula",17.56,-37.1,1.6,"#cfdcff","Azul · 570 a.l."],["Lesath",17.51,-37.3,2.7,"#cfdcff","Azul · 580 a.l."]],
+  l:[[1,2],[2,3],[2,4],[4,0],[0,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12],[12,13],[13,14]]},
+ {id:"cruz", nombre:"Cruz del Sur", lat:"Crux · la Cruz", epoca:"Abril a junio", hem:"Hemisferio sur; desde el sur de México, baja sobre el horizonte", area:"68 grados², la más pequeña",
+  txt:["La constelación más pequeña de las 88, y una de las más famosas: aparece en las banderas de Australia, Brasil, Nueva Zelanda, Papúa Nueva Guinea y Samoa.","Su eje largo apunta hacia el polo sur celeste; durante siglos guio a los navegantes del hemisferio sur.","Junto a ella está el Saco de Carbón, una nube oscura de polvo que tapa las estrellas de la Vía Láctea."],
+  s:[["Acrux",12.44,-63.1,.8,"#cfdcff","Azul múltiple · 320 a.l."],["Mimosa",12.8,-59.69,1.3,"#cfdcff","Gigante azul · 280 a.l."],["Gacrux",12.52,-57.11,1.6,"#ffa77a","Gigante roja · 88 a.l."],["Imai",12.25,-58.75,2.8,"#cfdcff","Azul · 345 a.l."],["Ginan",12.36,-60.4,3.6,"#ffd2a1","Gigante naranja · 230 a.l."]],
+  l:[[2,0],[1,3]]},
+ {id:"leo", nombre:"Leo", lat:"Leo · el León", epoca:"Marzo a mayo", hem:"Ecuatorial, visible desde todo el mundo", area:"947 grados²",
+  txt:["El león de Nemea vencido por Hércules en el primero de sus doce trabajos. Su cabeza forma un signo de interrogación al revés llamado la Hoz.","Regulus, el «pequeño rey», marca el corazón del león y está casi sobre la eclíptica: la Luna y los planetas pasan con frecuencia cerca de ella.","Cada noviembre, desde aquí parece salir la lluvia de estrellas de las Leónidas, restos del cometa Tempel-Tuttle."],
+  s:[["Regulus",10.14,11.97,1.4,"#cfdcff","Azul · 79 a.l."],["Eta Leo",10.12,16.76,3.5,"#e6ecff","Supergigante · 1,300 a.l."],["Algieba",10.33,19.84,2.0,"#ffd2a1","Doble naranja · 130 a.l."],["Adhafera",10.28,23.42,3.4,"#fff1d6","Gigante · 270 a.l."],["Rasalas",9.88,26.0,3.9,"#ffd2a1","Gigante naranja · 124 a.l."],["Algenubi",9.76,23.77,3.0,"#fff1d6","Gigante amarilla · 250 a.l."],["Zosma",11.24,20.52,2.6,"#e6ecff","Blanca · 58 a.l."],["Chertan",11.24,15.43,3.3,"#e6ecff","Blanca · 165 a.l."],["Denebola",11.82,14.57,2.1,"#e6ecff","Blanca · 36 a.l."]],
+  l:[[0,1],[1,2],[2,3],[3,4],[4,5],[2,6],[6,8],[8,7],[7,0]]},
+ {id:"cisne", nombre:"Cisne", lat:"Cygnus · la Cruz del Norte", epoca:"Julio a octubre", hem:"Hemisferio norte", area:"804 grados²",
+  txt:["Zeus disfrazado de cisne, o Orfeo convertido en ave, según la versión. Vuela a lo largo de la Vía Láctea con las alas abiertas y por eso también se le llama la Cruz del Norte.","Deneb, su cola, es una de las estrellas más luminosas que se ven a simple vista: brilla como 200,000 soles a unos 2,600 años luz. Forma con Vega y Altair el Triángulo de Verano.","Albireo, el pico, es una doble preciosa en telescopio: una estrella dorada y otra azul."],
+  s:[["Deneb",20.69,45.28,1.3,"#e6ecff","Supergigante blanca · ~2,600 a.l."],["Sadr",20.37,40.26,2.2,"#fff1d6","Supergigante · 1,800 a.l."],["Albireo",19.51,27.96,3.1,"#ffd2a1","Doble dorada y azul · 430 a.l."],["Aljanah",20.77,33.97,2.5,"#ffd2a1","Gigante naranja · 72 a.l."],["Fawaris",19.75,45.13,2.9,"#cfdcff","Azul · 165 a.l."]],
+  l:[[0,1],[1,2],[4,1],[1,3]]},
+ {id:"geminis", nombre:"Géminis", lat:"Gemini · los Gemelos", epoca:"Enero a abril", hem:"Hemisferio norte, visible desde todo México", area:"514 grados²",
+  txt:["Los gemelos Cástor y Pólux, hermanos de Helena de Troya. Al morir Cástor, Pólux pidió compartir su inmortalidad con él y Zeus los puso juntos en el cielo.","Pólux, la más brillante, es una gigante naranja con un planeta descubierto en 2006. Cástor, aunque parece una sola, es un sistema de seis estrellas.","De aquí parecen salir las Gemínidas, la lluvia de estrellas más abundante del año, cada 13 y 14 de diciembre."],
+  s:[["Cástor",7.58,31.89,1.6,"#e6ecff","Sistema séxtuple · 51 a.l."],["Pólux",7.76,28.03,1.1,"#ffd2a1","Gigante naranja · 34 a.l."],["Alhena",6.63,16.4,1.9,"#e6ecff","Blanca · 109 a.l."],["Mebsuta",6.73,25.13,3.0,"#fff1d6","Supergigante · 840 a.l."],["Tejat",6.38,22.51,2.9,"#ffa77a","Gigante roja · 230 a.l."],["Wasat",7.34,21.98,3.5,"#fff1d6","Blanca · 60 a.l."]],
+  l:[[0,1],[0,3],[3,4],[1,5],[5,2]]},
+ {id:"canmayor", nombre:"Can Mayor", lat:"Canis Major · el Perro Mayor", epoca:"Enero a marzo", hem:"Visible desde todo México, al sureste de Orión", area:"380 grados²", meses:[1,2,3],
+  txt:["El perro fiel de Orión, que lo sigue por el cielo. Lo encuentras prolongando hacia abajo y a la izquierda la línea del Cinturón de Orión.","Ahí brilla Sirio, la estrella más brillante de todo el cielo nocturno, a solo 8.6 años luz. Los egipcios esperaban su aparición al amanecer porque anunciaba la crecida del Nilo.","Sirio tiene una compañera diminuta, Sirio B, una enana blanca del tamaño de la Tierra pero con la masa del Sol."],
+  s:[["Sirio",6.75,-16.72,-1.46,"#dfe8ff","Blanca · 8.6 a.l."],["Mirzam",6.38,-17.96,1.98,"#cfdcff","Gigante azul · 490 a.l."],["Adhara",6.98,-28.97,1.5,"#cfdcff","Gigante azul · 430 a.l."],["Wezen",7.14,-26.39,1.83,"#fff1d6","Supergigante amarilla · 1,600 a.l."],["Aludra",7.4,-29.3,2.45,"#cfdcff","Supergigante azul · 2,000 a.l."],["Furud",6.34,-30.06,3.0,"#cfdcff","Azul · 360 a.l."]],
+  l:[[1,0],[0,3],[3,2],[3,4],[2,5]]},
+ {id:"tauro", nombre:"Tauro", lat:"Taurus · el Toro", epoca:"Noviembre a febrero", hem:"Visible desde todo el mundo", area:"797 grados²", meses:[11,12,1,2],
+  txt:["El toro en el que Zeus se transformó para raptar a Europa. Su cara en forma de V es el cúmulo de las Híades, el cúmulo de estrellas más cercano a nosotros, a 153 años luz.","Aldebarán, el ojo rojo del toro, parece parte de las Híades pero está mucho más cerca, a 65 años luz.","En su lomo brillan las Pléyades (M45), las «siete hermanas» o «cabrillas»: un racimo de estrellas jóvenes que los mexicas observaban para iniciar la ceremonia del Fuego Nuevo cada 52 años."],
+  s:[["Aldebarán",4.6,16.51,.85,"#ffa77a","Gigante naranja · 65 a.l."],["Elnath",5.44,28.61,1.65,"#cfdcff","Gigante azul · 134 a.l."],["Tianguan",5.63,21.14,3.0,"#cfdcff","Azul · 440 a.l."],["Ain",4.48,19.18,3.5,"#ffd2a1","Gigante naranja · 147 a.l."],["Prima Hyadum",4.33,15.63,3.65,"#ffd2a1","Gigante · 154 a.l."],["Secunda Hyadum",4.38,17.54,3.8,"#ffd2a1","Gigante · 153 a.l."],["Alcyone (Pléyades)",3.79,24.11,2.87,"#cfdcff","Gigante azul · 440 a.l."],["Lambda Tau",4.01,12.49,3.4,"#cfdcff","Eclipsante · 480 a.l."]],
+  l:[[1,3],[3,5],[5,4],[2,0],[0,4],[4,7]]},
+ {id:"lira", nombre:"Lira", lat:"Lyra · la Lira", epoca:"Junio a septiembre", hem:"Hemisferio norte; casi en el cenit en verano", area:"286 grados²", meses:[6,7,8,9],
+  txt:["La lira de Orfeo, cuya música encantaba a fieras y dioses. Es pequeña pero inconfundible por Vega, la quinta estrella más brillante del cielo.","Vega fue la Estrella Polar hace unos 12,000 años y lo volverá a ser dentro de unos 13,700, por el lento bamboleo del eje terrestre.","Entre Sheliak y Sulafat se esconde la Nebulosa del Anillo (M57), lo que queda de una estrella como el Sol al final de su vida."],
+  s:[["Vega",18.62,38.78,.03,"#dfe8ff","Blanca · 25 a.l."],["Sheliak",18.83,33.36,3.5,"#cfdcff","Binaria eclipsante · 960 a.l."],["Sulafat",18.98,32.69,3.25,"#cfdcff","Gigante azul · 620 a.l."],["Zeta Lyr",18.75,37.6,4.3,"#e6ecff","Doble · 150 a.l."],["Delta Lyr",18.91,36.9,4.3,"#ffa77a","Gigante roja · 900 a.l."],["Épsilon Lyr",18.74,39.67,4.7,"#e6ecff","«Doble doble» · 160 a.l."]],
+  l:[[0,3],[0,5],[3,1],[1,2],[2,4],[4,3]]},
+ {id:"sagitario", nombre:"Sagitario", lat:"Sagittarius · el Arquero", epoca:"Julio a septiembre", hem:"Hemisferio sur; bajo al sur desde México", area:"867 grados²", meses:[7,8,9],
+  txt:["El centauro arquero que apunta su flecha al corazón de Escorpio. Sus estrellas más brillantes forman un asterismo fácil: la Tetera.","Detrás de la Tetera está el centro de la Vía Láctea, a unos 26,000 años luz, con el agujero negro Sagitario A*, cuatro millones de veces más masivo que el Sol. Su primera imagen se publicó en 2022.","En noches oscuras, el brillo de la Vía Láctea parece «vapor» saliendo del pico de la Tetera."],
+  s:[["Kaus Australis",18.4,-34.38,1.85,"#cfdcff","Gigante azul · 145 a.l."],["Nunki",18.92,-26.3,2.05,"#cfdcff","Azul · 230 a.l."],["Ascella",19.04,-29.88,2.6,"#e6ecff","Doble · 90 a.l."],["Kaus Media",18.35,-29.83,2.7,"#ffd2a1","Gigante naranja · 350 a.l."],["Kaus Borealis",18.47,-25.42,2.8,"#ffd2a1","Gigante naranja · 78 a.l."],["Alnasl",18.1,-30.42,2.98,"#ffd2a1","Gigante · 97 a.l."],["Phi Sgr",18.76,-26.99,3.17,"#cfdcff","Azul · 240 a.l."],["Tau Sgr",19.12,-27.67,3.3,"#ffd2a1","Gigante naranja · 120 a.l."]],
+  l:[[5,3],[3,4],[4,6],[6,1],[1,7],[7,2],[2,6],[2,0],[0,3],[0,5],[3,6]]}
+];
+const MESES = {orion:[12,1,2,3], osamayor:[3,4,5,6], casiopea:[9,10,11,12], escorpio:[6,7,8], cruz:[4,5,6], leo:[3,4,5], cisne:[7,8,9,10], geminis:[1,2,3,4]};
+C.forEach(k => { if(!k.meses) k.meses = MESES[k.id] || []; });
+const mesHoy = new Date().getMonth() + 1;
+let ci = 0;
+const ch = $("#chart"), cx2 = ch.getContext("2d"), tip = $("#tip");
+let chartStars = [], bg = [];
+function drawChart(hl = -1){
+  const dpr = Math.min(devicePixelRatio || 1, 2), W = ch.clientWidth, H = ch.clientHeight; if(!W) return;
+  ch.width = W * dpr; ch.height = H * dpr; cx2.setTransform(dpr, 0, 0, dpr, 0, 0); cx2.clearRect(0, 0, W, H);
+  const k = C[ci], ras = k.s.map(s => s[1]), dec0 = k.s.reduce((a, s) => a + s[2], 0) / k.s.length;
+  let ra0 = k.s.reduce((a, s) => a + s[1], 0) / k.s.length;
+  const pts = k.s.map(s => { let dra = s[1] - ra0; if(dra > 12) dra -= 24; if(dra < -12) dra += 24; return [-dra * 15 * Math.cos(dec0 * Math.PI / 180), -(s[2] - dec0)]; });
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), w = Math.max(...xs) - Math.min(...xs) || 1, h = Math.max(...ys) - Math.min(...ys) || 1;
+  const sc2 = Math.min((W - 90) / w, (H - 90) / h), mx = (Math.max(...xs) + Math.min(...xs)) / 2, my = (Math.max(...ys) + Math.min(...ys)) / 2;
+  chartStars = pts.map((p, i) => ({x:W / 2 + (p[0] - mx) * sc2, y:H / 2 + (p[1] - my) * sc2, s:k.s[i]}));
+  // estrellas de fondo fijas por constelación
+  const r = rng(ci * 7919 + 3); cx2.fillStyle = "#d8dcff";
+  for(let i = 0; i < 160; i++){ cx2.globalAlpha = .15 + r() * .45; cx2.beginPath(); cx2.arc(r() * W, r() * H, r() * .9 + .2, 0, 6.283); cx2.fill(); }
+  cx2.globalAlpha = 1;
+  // rejilla de declinación
+  cx2.strokeStyle = "rgba(143,184,255,.08)"; cx2.lineWidth = 1;
+  for(let g = -90; g <= 90; g += 5){ const y = H / 2 + (-(g - dec0) - my) * sc2; if(y > 0 && y < H){ cx2.beginPath(); cx2.moveTo(0, y); cx2.lineTo(W, y); cx2.stroke(); cx2.fillStyle = "rgba(154,163,196,.5)"; cx2.font = "10px Spectral, Georgia, serif"; cx2.fillText((g > 0 ? "+" : "") + g + "°", 6, y - 3); } }
+  // líneas
+  cx2.strokeStyle = "rgba(217,184,114,.55)"; cx2.lineWidth = 1.2;
+  for(const [a, b] of k.l){ const A = chartStars[a], Bp = chartStars[b]; cx2.beginPath(); cx2.moveTo(A.x, A.y); cx2.lineTo(Bp.x, Bp.y); cx2.stroke(); }
+  // estrellas
+  chartStars.forEach((st, i) => {
+    const rad = Math.max(1.6, (4.6 - st.s[3]) * 1.9), on = i === hl;
+    const gl = cx2.createRadialGradient(st.x, st.y, 0, st.x, st.y, rad * (on ? 6 : 4)); gl.addColorStop(0, st.s[4] + "cc"); gl.addColorStop(1, st.s[4] + "00");
+    cx2.fillStyle = gl; cx2.beginPath(); cx2.arc(st.x, st.y, rad * (on ? 6 : 4), 0, 6.283); cx2.fill();
+    cx2.fillStyle = "#ffffff"; cx2.beginPath(); cx2.arc(st.x, st.y, rad * .6, 0, 6.283); cx2.fill();
+    if(st.s[3] < 1.75 || on){ cx2.fillStyle = on ? "#fff4dc" : "rgba(236,230,214,.75)"; cx2.font = (on ? "500 " : "") + "13px Cormorant Garamond, Georgia, serif"; cx2.fillText(st.s[0], st.x + rad + 6, st.y - rad - 2); }
+  });
+}
+function renderConst(){
+  const k = C[ci];
+  $("#chips").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === ci));
+  $("#const").innerHTML = `<div class="eyebrow caps"><i></i>Constelación</div><h3>${k.nombre}</h3><div class="lat">${k.lat}</div>
+    <div class="meta"><div><span class="caps">Mejor época</span><b>${k.epoca}${k.meses.includes(mesHoy) ? " · visible ahora" : ""}</b></div><div><span class="caps">Área</span><b>${k.area}</b></div></div>
+    <p class="caps" style="margin:0 0 10px">${k.hem}</p>${k.txt.map(t => `<p>${t}</p>`).join("")}
+    <div class="tbl"><table class="stars-t"><thead><tr><th>Estrella</th><th>Magnitud</th><th>Tipo y distancia</th></tr></thead><tbody>${k.s.slice().sort((a, b) => a[3] - b[3]).map(s => `<tr data-st="${s[0]}"><td>${s[0]}</td><td>${s[3].toFixed(1)}</td><td>${s[5]}</td></tr>`).join("")}</tbody></table></div>`;
+  drawChart();
+}
+C.forEach((k, i) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = k.nombre + (k.meses.includes(mesHoy) ? '<span class="dot" title="Visible este mes"></span>' : ""); b.addEventListener("click", () => { ci = i; renderConst(); }); $("#chips").appendChild(b); });
+function hover(x, y){
+  let best = -1, bd = 22; chartStars.forEach((s, i) => { const d = Math.hypot(s.x - x, s.y - y); if(d < bd){ bd = d; best = i; } });
+  drawChart(best);
+  if(best >= 0){ const s = chartStars[best]; tip.innerHTML = `<b>${s.s[0]}</b>Magnitud ${s.s[3].toFixed(1)} · ${s.s[5]}`; tip.style.left = s.x + "px"; tip.style.top = s.y + "px"; tip.style.opacity = 1; }
+  else tip.style.opacity = 0;
+}
+ch.addEventListener("pointermove", e => { const r = ch.getBoundingClientRect(); hover(e.clientX - r.left, e.clientY - r.top); });
+ch.addEventListener("pointerleave", () => { tip.style.opacity = 0; drawChart(); });
+$("#const").addEventListener("mouseover", e => { const tr = e.target.closest("[data-st]"); if(!tr) return; const i = chartStars.findIndex(s => s.s[0] === tr.dataset.st); if(i >= 0){ const s = chartStars[i]; hover(s.x, s.y); } });
+
+
+/* ================= SISTEMA SOLAR VIVO ================= */
+const J2000 = Date.UTC(2000, 0, 1, 12);
+const EL = {mercurio:[252.25, 87.969], venus:[181.98, 224.701], tierra:[100.46, 365.256], marte:[355.45, 686.98], jupiter:[34.40, 4332.59], saturno:[49.94, 10759.22], urano:[313.23, 30688.5], neptuno:[304.88, 60182], pluton:[238.93, 90560]};
+const lonAt = (id, t) => { const [L0, P] = EL[id]; return ((L0 + 360 * (t - J2000) / 864e5 / P) % 360 + 360) % 360; };
+const byId = id => B.find(b => b.id === id);
+const posAU = (id, t) => { const a = lonAt(id, t) * Math.PI / 180, r = byId(id).au; return [r * Math.cos(a), r * Math.sin(a)]; };
+const distTierra = (id, t = Date.now()) => { if(id === "luna") return 384400; if(id === "tierra") return 0; if(id === "sol") return 149.6e6; const a = posAU(id, t), e = posAU("tierra", t); return Math.hypot(a[0] - e[0], a[1] - e[1]) * 149.6e6; };
+const orr = $("#orr"), ok = orr.getContext("2d"), OP = B.filter(b => EL[b.id]);
+let OW = 0, OH = 0, simT = Date.now(), playing = !reduced, speed = 7, oScale = "c", zoom = 1, pan = [0, 0], oHover = null, oSel = null, oDrag = null, orrVisible = true;
+const beltR = rng(42), belt = [...Array.from({length:420}, () => [2.2 + beltR() * 1.1, beltR() * 6.283, 0]), ...Array.from({length:380}, () => [30 + beltR() * 18, beltR() * 6.283, 1])];
+function sizeOrr(){ const dpr = Math.min(devicePixelRatio || 1, 2); OW = orr.clientWidth; OH = orr.clientHeight; orr.width = OW * dpr; orr.height = OH * dpr; ok.setTransform(dpr, 0, 0, dpr, 0, 0); }
+const oBase = () => Math.min(OW, OH) / 2 - 34;
+const oR = au => (oScale === "c" ? 18 + Math.sqrt(au) / Math.sqrt(39.48) * (oBase() - 18) : au / 39.48 * oBase()) * zoom;
+let oPts = [];
+function drawOrr(){
+  if(!OW) return;
+  ok.clearRect(0, 0, OW, OH);
+  const cx = OW / 2 + pan[0], cy = OH / 2 + pan[1], days = (simT - J2000) / 864e5;
+  // cinturones
+  for(const [au, a0, k] of belt){ const a = a0 + 2 * Math.PI * days / (365.25 * au ** 1.5), r = oR(au); ok.fillStyle = k ? "rgba(143,184,255,.35)" : "rgba(236,214,170,.4)"; ok.fillRect(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1.2, 1.2); }
+  // Sol
+  const sg = ok.createRadialGradient(cx, cy, 0, cx, cy, 22); sg.addColorStop(0, "#fff4c2"); sg.addColorStop(.35, "#ffc35a"); sg.addColorStop(1, "rgba(255,160,60,0)");
+  ok.fillStyle = sg; ok.beginPath(); ok.arc(cx, cy, 22, 0, 6.283); ok.fill();
+  oPts = [{id:"sol", x:cx, y:cy}];
+  for(const b of OP){
+    const r = oR(b.au), a = lonAt(b.id, simT) * Math.PI / 180, x = cx + Math.cos(a) * r, y = cy - Math.sin(a) * r;
+    const on = oSel === b.id || oHover === b.id || B[cur].id === b.id;
+    ok.strokeStyle = on ? "rgba(217,184,114,.7)" : b.id === "pluton" ? "rgba(236,230,214,.1)" : "rgba(236,230,214,.16)"; ok.lineWidth = on ? 1.2 : .8;
+    if(b.id === "pluton") ok.setLineDash([3, 5]); ok.beginPath(); ok.arc(cx, cy, r, 0, 6.283); ok.stroke(); ok.setLineDash([]);
+    const sz = Math.max(2.2, Math.min(9, 1.6 + Math.sqrt(b.d / 12742) * 2.6));
+    const g = ok.createRadialGradient(x - sz * .3, y - sz * .3, 0, x, y, sz * 2.2); g.addColorStop(0, "#fff"); g.addColorStop(.25, b.glow); g.addColorStop(1, b.glow + "00");
+    ok.fillStyle = g; ok.beginPath(); ok.arc(x, y, sz * 2.2, 0, 6.283); ok.fill();
+    if(b.rings){ ok.strokeStyle = b.glow; ok.lineWidth = 1; ok.beginPath(); ok.ellipse(x, y, sz * 2, sz * .7, -.4, 0, 6.283); ok.stroke(); }
+    if(b.id === "tierra"){ const la = 2 * Math.PI * days / 27.32; ok.fillStyle = "#d8d6d0"; ok.beginPath(); ok.arc(x + Math.cos(la) * 9, y + Math.sin(la) * 9, 1.4, 0, 6.283); ok.fill(); }
+    if(on){ ok.strokeStyle = "rgba(255,244,220,.9)"; ok.lineWidth = 1; ok.beginPath(); ok.arc(x, y, sz + 6, 0, 6.283); ok.stroke(); }
+    if(r > 26 || on){ ok.fillStyle = on ? "#fff4dc" : "rgba(236,230,214,.7)"; ok.font = (on ? "500 " : "") + "13px 'Cormorant Garamond', Georgia, serif"; ok.textAlign = "left"; ok.fillText(b.nombre, x + sz + 7, y + 4); }
+    oPts.push({id:b.id, x, y});
+  }
+  // línea Tierra-seleccionado
+  if(oSel && oSel !== "tierra" && oSel !== "sol"){ const A = oPts.find(p => p.id === "tierra"), Bp = oPts.find(p => p.id === oSel); ok.strokeStyle = "rgba(143,184,255,.6)"; ok.setLineDash([4, 4]); ok.beginPath(); ok.moveTo(A.x, A.y); ok.lineTo(Bp.x, Bp.y); ok.stroke(); ok.setLineDash([]); }
+  $("#oDate").textContent = new Date(simT).toLocaleDateString("es-MX", {day:"numeric", month:"long", year:"numeric"});
+}
+function oCard(){
+  const c = $("#oCard"); if(!oSel){ c.classList.add("off"); return; }
+  const b = byId(oSel), d = distTierra(b.id, simT), s = d / 299792.458;
+  const luz = s < 60 ? `${s.toFixed(1)} s` : s < 3600 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min`;
+  c.innerHTML = `<span class="caps">${b.tipo}</span><h4>${b.nombre}</h4><dl>
+    ${b.id !== "sol" ? `<dt>Distancia al Sol</dt><dd>${nf(b.au, 2)} UA</dd>` : ""}
+    ${b.id !== "tierra" ? `<dt>Distancia a la Tierra</dt><dd>${nf(d / 1e6, 1)} M km</dd><dt>Luz desde aquí</dt><dd>${luz}</dd>` : `<dt>Velocidad orbital</dt><dd>29.8 km/s</dd>`}
+    ${EL[b.id] ? `<dt>Longitud heliocéntrica</dt><dd>${nf(lonAt(b.id, simT))}°</dd>` : ""}</dl>
+    <button type="button" class="pbtn" data-explorar="${b.id}">Explorar a fondo ↑</button>`;
+  c.classList.remove("off");
+}
+$("#oCard").addEventListener("click", e => { const t = e.target.closest("[data-explorar]"); if(!t) return; select(B.findIndex(b => b.id === t.dataset.explorar)); $("#top").scrollIntoView({behavior:reduced ? "auto" : "smooth"}); });
+const oHit = (x, y) => { let best = null, bd = 18; for(const p of oPts){ const d = Math.hypot(p.x - x, p.y - y); if(d < bd){ bd = d; best = p.id; } } return best; };
+orr.addEventListener("pointerdown", e => { oDrag = {x:e.clientX, y:e.clientY, p:[...pan], moved:false}; orr.setPointerCapture(e.pointerId); orr.classList.add("drag"); });
+orr.addEventListener("pointermove", e => {
+  const r = orr.getBoundingClientRect();
+  if(oDrag){ const dx = e.clientX - oDrag.x, dy = e.clientY - oDrag.y; if(Math.hypot(dx, dy) > 4) oDrag.moved = true; pan = [oDrag.p[0] + dx, oDrag.p[1] + dy]; }
+  else { oHover = oHit(e.clientX - r.left, e.clientY - r.top); orr.style.cursor = oHover ? "pointer" : "grab"; }
+});
+orr.addEventListener("pointerup", e => { const r = orr.getBoundingClientRect(); if(oDrag && !oDrag.moved){ oSel = oHit(e.clientX - r.left, e.clientY - r.top); oCard(); } oDrag = null; orr.classList.remove("drag"); });
+orr.addEventListener("wheel", e => { e.preventDefault(); const f = e.deltaY < 0 ? 1.15 : 1 / 1.15; zoom = Math.max(.6, Math.min(40, zoom * f)); pan = [pan[0] * f, pan[1] * f]; }, {passive:false});
+$("#oZin").addEventListener("click", () => { zoom = Math.min(40, zoom * 1.5); pan = pan.map(v => v * 1.5); });
+$("#oZout").addEventListener("click", () => { zoom = Math.max(.6, zoom / 1.5); pan = pan.map(v => v / 1.5); });
+$("#oHoy").addEventListener("click", () => { simT = Date.now(); oCard(); });
+$("#oPlay").addEventListener("click", () => { playing = !playing; $("#oPlay").textContent = playing ? "❚❚" : "▶"; });
+$("#oPlay").textContent = playing ? "❚❚" : "▶";
+[["1 día/s", 1], ["1 semana/s", 7], ["1 mes/s", 30], ["1 año/s", 365]].forEach(([t, v]) => { const bt = document.createElement("button"); bt.type = "button"; bt.textContent = t; bt.className = v === speed ? "on" : ""; bt.addEventListener("click", () => { speed = v; [...$("#oSpeed").children].forEach(x => x.classList.toggle("on", x === bt)); if(!playing){ playing = true; $("#oPlay").textContent = "❚❚"; } }); $("#oSpeed").appendChild(bt); });
+$("#oScale").addEventListener("click", e => { const bt = e.target.closest("[data-s]"); if(!bt) return; oScale = bt.dataset.s; zoom = oScale === "r" ? 1 : 1; pan = [0, 0]; [...$("#oScale").children].forEach(x => x.classList.toggle("on", x === bt)); });
+if("IntersectionObserver" in window) new IntersectionObserver(es => es.forEach(en => orrVisible = en.isIntersecting)).observe(orr);
+
+/* ================= COMPARADOR ================= */
+const cA = $("#cA"), cB = $("#cB");
+B.forEach(b => { cA.add(new Option(b.nombre, b.id)); cB.add(new Option(b.nombre, b.id)); });
+cA.value = "tierra"; cB.value = "jupiter";
+function renderCmp(){
+  const a = byId(cA.value), b = byId(cB.value), na = NUM[a.id], nb = NUM[b.id];
+  const M = [
+    ["Diámetro", a.d, b.d, v => nf(v) + " km", "más ancho"],
+    ["Masa", na[0], nb[0], v => (v >= 100 ? nf(v) : nf(v, v < .01 ? 4 : v < 1 ? 3 : 1)) + " Tierras", "más masivo"],
+    ["Gravedad", a.g, b.g, v => nf(v, 2) + " m/s²", "más gravedad"],
+    ["Duración del día", na[1], nb[1], v => v < 48 ? nf(v, 1) + " h" : nf(v / 24, 1) + " días", "más largo"],
+    ["Duración del año", na[2], nb[2], v => v == null ? "—" : v < 700 ? nf(v, 1) + " días" : nf(v / 365.25, 1) + " años", "más largo"],
+    ["Distancia al Sol", a.au, b.au, v => v ? nf(v, 2) + " UA" : "—", "más lejos"],
+    ["Lunas", na[4], nb[4], v => v == null ? "8 planetas" : nf(v), "más lunas"],
+    ["Temperatura media", na[3], nb[3], v => nf(v) + " °C", null]
+  ];
+  $("#cmp").innerHTML = M.map(([n, va, vb, f, word]) => {
+    let wa, wb, em = "";
+    if(word === null){ wa = (va + 250) / 750 * 100; wb = (vb + 250) / 750 * 100; em = va === vb ? "Igual temperatura" : `${va > vb ? a.nombre : b.nombre} es ${nf(Math.abs(va - vb))} °C más caliente`; }
+    else { const mx = Math.max(va || 0, vb || 0) || 1; wa = (va || 0) / mx * 100; wb = (vb || 0) / mx * 100;
+      if(va && vb && va !== vb){ const big = va > vb ? a : b, r = Math.max(va, vb) / Math.min(va, vb); em = `${big.nombre}: ${r >= 100 || Number.isInteger(r) ? nf(r) : nf(r, r < 10 ? 2 : 1)} veces ${word}`; } }
+    return `<div class="metric"><span>${n}</span><div class="mbars">
+      <div class="mbar"><i style="--c:${a.glow};--w:${Math.max(wa, .6)}%"></i><b>${f(va)}</b></div>
+      <div class="mbar"><i style="--c:${b.glow};--w:${Math.max(wb, .6)}%"></i><b>${f(vb)}</b></div></div>${em ? `<em>${em}</em>` : ""}</div>`;
+  }).join("");
+  // tamaños a escala
+  const c = $("#cmpViz"), dpr = Math.min(devicePixelRatio || 1, 2), S = c.clientWidth || 260; c.width = c.height = S * dpr; const x = c.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const mx = Math.max(a.d, b.d), ra = Math.max(1.5, a.d / mx * S * .42), rb = Math.max(1.5, b.d / mx * S * .42);
+  const ball = (cx, cy, r, col) => { const g = x.createRadialGradient(cx - r * .35, cy - r * .35, r * .05, cx, cy, r); g.addColorStop(0, "#fff"); g.addColorStop(.25, col); g.addColorStop(1, "#0b1030"); x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, 6.283); x.fill(); };
+  const [rG, cG, rP, cP] = ra >= rb ? [ra, a.glow, rb, b.glow] : [rb, b.glow, ra, a.glow];
+  ball(S * .5, S * .5, rG, cG); ball(S * .5, S * .5 + rG - rP, rP, cP);
+  x.font = "500 10px Cinzel, Georgia, serif"; x.fillStyle = "#9aa3c4"; x.textAlign = "center"; x.fillText("A ESCALA", S / 2, S - 6);
+}
+cA.addEventListener("change", renderCmp); cB.addEventListener("change", renderCmp);
+
+/* ================= EDAD ================= */
+function renderEdad(){
+  const v = $("#nac").value, nac = v ? new Date(v + "T12:00") : null;
+  $("#edadNota").textContent = v === "1990-06-15" ? "Fecha de ejemplo · escribe la tuya" : "";
+  if(!nac || nac > new Date()){ $("#edades").innerHTML = `<p class="intro-p">Escribe una fecha de nacimiento pasada.</p>`; $("#vida").innerHTML = ""; return; }
+  const dias = (Date.now() - nac) / 864e5;
+  let prox = null;
+  const cards = OP.map(b => { const P = EL[b.id][1], edad = dias / P, falta = (Math.floor(edad) + 1 - edad) * P, f = new Date(Date.now() + falta * 864e5);
+    if(!prox || falta < prox.falta) prox = {b, falta, n:Math.floor(edad) + 1, f};
+    return {b, edad, falta, f, n:Math.floor(edad) + 1}; });
+  $("#edades").innerHTML = cards.map(({b, edad, falta, f, n}) => `<button type="button" class="edad ${prox.b === b ? "hot" : ""}" style="--c:${b.glow}" data-ir="${b.id}"><span>${b.nombre}</span><b>${edad < 10 ? nf(edad, 2) : nf(edad, 1)}<small> años</small></b>
+    <p>${falta < 1.5 ? "¡Cumples " + n + " hoy o mañana!" : `Cumples ${nf(n)} ${falta < 400 ? "en " + nf(falta) + " días" : "el " + f.toLocaleDateString("es-MX", {day:"numeric", month:"short", year:"numeric"})}`}</p></button>`).join("");
+  $("#vida").innerHTML = `<div><b>${nf(dias)}</b><span>días vividos en la Tierra</span></div>
+    <div><b>${nf(dias * 2.574)} M km</b><span>recorridos alrededor del Sol a 107,000 km/h</span></div>
+    <div><b>${nf(dias * 1.0027)}</b><span>vueltas de la Tierra sobre su eje</span></div>
+    <div><b>${nf(dias / 29.53)}</b><span>lunas llenas desde que naciste</span></div>`;
+}
+$("#nac").addEventListener("input", renderEdad);
+$("#edades").addEventListener("click", e => { const t = e.target.closest("[data-ir]"); if(!t) return; select(B.findIndex(b => b.id === t.dataset.ir)); $("#top").scrollIntoView({behavior:reduced ? "auto" : "smooth"}); });
+
+/* ================= VIAJE ================= */
+const VEH = [["A pie", 5, "caminando 24 horas al día"], ["Auto", 100, "en carretera sin parar"], ["Avión", 900, "a velocidad de crucero"], ["Apolo 11", 39000, "la velocidad con que los astronautas fueron a la Luna"], ["Parker Solar Probe", 692000, "la nave más rápida jamás construida"], ["Luz", 1079252849, "lo más rápido que existe"]];
+let vDest = "marte", vVeh = 3;
+B.filter(b => b.id !== "tierra").forEach(b => { const bt = document.createElement("button"); bt.type = "button"; bt.textContent = b.nombre; bt.dataset.d = b.id; $("#vDest").appendChild(bt); });
+VEH.forEach((v, i) => { const bt = document.createElement("button"); bt.type = "button"; bt.textContent = v[0]; bt.dataset.v = i; $("#vVeh").appendChild(bt); });
+const durTxt = h => { const s = h * 3600; if(s < 60) return nf(s, 1) + " segundos"; if(h < 1) return nf(s / 60, 1) + " minutos"; if(h < 48) return nf(h, 1) + " horas"; const d = h / 24; if(d < 730) return nf(d) + " días"; const y = d / 365.25; return y < 1e4 ? nf(y) + " años" : nf(y / 1000) + " mil años"; };
+function renderViaje(){
+  [...$("#vDest").children].forEach(b => b.classList.toggle("on", b.dataset.d === vDest)); [...$("#vVeh").children].forEach(b => b.classList.toggle("on", +b.dataset.v === vVeh));
+  const b = byId(vDest), km = distTierra(vDest), [vn, kmh, nota] = VEH[vVeh], h = km / kmh;
+  let rango = "";
+  if(EL[vDest]){ const mn = Math.abs(b.au - 1) * 149.6e6, mx = (b.au + 1) * 149.6e6; rango = `<dt>Lo más cerca posible</dt><dd>${nf(mn / 1e6, 1)} M km · ${durTxt(mn / kmh)}</dd><dt>Lo más lejos posible</dt><dd>${nf(mx / 1e6, 1)} M km · ${durTxt(mx / kmh)}</dd>`; }
+  const vidas = h / 24 / 365.25 / 80;
+  $("#vOut").innerHTML = `<span class="caps">${vn} → ${b.nombre}</span><b class="t">${durTxt(h)}</b>
+    <p>Viajando a ${nf(kmh)} km/h, ${nota}, para cubrir ${km >= 1e6 ? nf(km / 1e6, 1) + " millones de km" : nf(km) + " km"}${vDest === "luna" || vDest === "sol" ? "" : ", la distancia de hoy"}.${vidas > 1 ? ` Equivale a ${nf(vidas, vidas < 10 ? 1 : 0)} vidas humanas de 80 años.` : ""}</p>
+    <dl>${rango}<dt>Velocidad</dt><dd>${nf(kmh)} km/h</dd></dl>`;
+  $("#vDestLbl").textContent = b.nombre;
+  const sh = $("#ship"); sh.classList.remove("go"); void sh.offsetWidth; sh.style.setProperty("--dur", Math.min(10, 1.2 + Math.log10(h + 1) * 1.1) + "s"); if(!reduced) sh.classList.add("go"); else sh.style.left = "calc(100% - 12px)";
+}
+$("#vDest").addEventListener("click", e => { const t = e.target.closest("[data-d]"); if(t){ vDest = t.dataset.d; renderViaje(); } });
+$("#vVeh").addEventListener("click", e => { const t = e.target.closest("[data-v]"); if(t){ vVeh = +t.dataset.v; renderViaje(); } });
+
+/* ================= DESAFÍO ================= */
+const PREG = [
+  ["¿Qué planeta tiene más lunas confirmadas?", "saturno", "Saturno tiene 274 lunas confirmadas, contra 97 de Júpiter."],
+  ["¿En qué planeta el día dura más que el año?", "venus", "Venus tarda 243 días en girar sobre sí mismo y solo 225 en dar la vuelta al Sol."],
+  ["¿Cuál es el planeta más caliente?", "venus", "Su atmósfera de CO₂ atrapa el calor: 464 °C, más que Mercurio."],
+  ["¿Dónde pesarías más?", "jupiter", "Su gravedad es 2.5 veces la terrestre."],
+  ["¿Qué planeta gira «acostado», con el eje casi horizontal?", "urano", "Su eje está inclinado 98°, quizá por un gran choque."],
+  ["¿Qué planeta se descubrió con cálculos antes que con telescopio?", "neptuno", "Le Verrier predijo su posición en 1846 y Galle lo encontró a menos de 1°."],
+  ["¿Qué planeta flotaría en una bañera gigante?", "saturno", "Su densidad media es 0.69 g/cm³, menor que la del agua."],
+  ["¿Dónde está el volcán más alto del sistema solar?", "marte", "Olympus Mons mide casi 22 km de altura."],
+  ["¿Qué planeta tiene el año más corto?", "mercurio", "Da la vuelta al Sol en solo 88 días."],
+  ["¿Dónde gira una tormenta más ancha que la Tierra desde hace siglos?", "jupiter", "La Gran Mancha Roja mide unos 16,000 km."],
+  ["¿Qué planeta tiene un hexágono en su polo norte?", "saturno", "Una corriente de chorro de seis lados de unos 29,000 km."],
+  ["¿Alrededor de qué planeta gira Tritón, la luna que va al revés?", "neptuno", "Tritón probablemente fue capturado del cinturón de Kuiper."],
+  ["¿Qué mundo tiene un gran «corazón» de hielo de nitrógeno?", "pluton", "Tombaugh Regio, fotografiado por New Horizons en 2015."],
+  ["¿Qué astro concentra el 99.86% de la masa del sistema solar?", "sol", "Todo lo demás, planetas incluidos, es apenas el 0.14%."],
+  ["¿Qué planeta es rojo por óxido de hierro?", "marte", "Su polvo es, literalmente, herrumbre."],
+  ["¿Sobre qué mundo caminaron doce personas?", "luna", "Entre 1969 y 1972, con el programa Apolo."]
+];
+let quiz = null;
+function nuevoQuiz(){ const pool = PREG.slice().sort(() => Math.random() - .5).slice(0, 8); quiz = {q:pool.map(([t, a, e]) => { const otros = B.filter(b => b.id !== a).sort(() => Math.random() - .5).slice(0, 3).map(b => b.id); return {t, a, e, o:[a, ...otros].sort(() => Math.random() - .5)}; }), i:0, pts:0, resp:null}; renderQuiz(); }
+function renderQuiz(){
+  const box = $("#quizBox"), q = quiz.q[quiz.i];
+  if(!q){ const p = quiz.pts, rank = p >= 8 ? "Comandante de la flota estelar" : p >= 6 ? "Astrónomo experto" : p >= 4 ? "Navegante espacial" : "Cadete del observatorio";
+    box.innerHTML = `<div class="qend"><span class="caps">Tu resultado</span><b>${p}/8</b><div class="rank">${rank}</div><p style="color:#cfc9ba">${p >= 6 ? "Conoces el sistema solar como pocos." : "Explora los expedientes y vuelve a intentarlo."}</p><button type="button" class="pbtn on" id="qOtra">Jugar otra vez</button></div>`;
+    $("#qOtra").addEventListener("click", nuevoQuiz); return; }
+  box.innerHTML = `<div class="qbar"><i style="width:${quiz.i / 8 * 100}%"></i></div><span class="caps">Pregunta ${quiz.i + 1} de 8 · ${quiz.pts} aciertos</span><h3>${q.t}</h3>
+    <div class="opts">${q.o.map(id => { const b = byId(id); let cls = ""; if(quiz.resp){ if(id === q.a) cls = "ok"; else if(id === quiz.resp) cls = "bad"; } return `<button type="button" data-o="${id}" class="${cls}" ${quiz.resp ? "disabled" : ""}><i style="--c:${b.glow}"></i>${b.nombre}</button>`; }).join("")}</div>
+    ${quiz.resp ? `<p class="qexp">${quiz.resp === q.a ? "¡Correcto! " : "No exactamente. "}${q.e}</p><div class="qfoot"><button type="button" class="pbtn" data-ver="${q.a}">Ver ${byId(q.a).nombre} ↑</button><button type="button" class="pbtn on" id="qSig">${quiz.i < 7 ? "Siguiente" : "Ver resultado"}</button></div>` : ""}`;
+}
+$("#quizBox").addEventListener("click", e => {
+  const o = e.target.closest("[data-o]"); if(o && !quiz.resp){ quiz.resp = o.dataset.o; if(quiz.resp === quiz.q[quiz.i].a) quiz.pts++; renderQuiz(); return; }
+  if(e.target.closest("#qSig")){ quiz.i++; quiz.resp = null; renderQuiz(); return; }
+  const v = e.target.closest("[data-ver]"); if(v){ select(B.findIndex(b => b.id === v.dataset.ver)); $("#top").scrollIntoView({behavior:reduced ? "auto" : "smooth"}); }
+});
+
+/* ================= INTRO ================= */
+(function intro(){
+  const el = $("#intro"); let done = false;
+  const fin = () => { if(done) return; done = true; el.classList.add("gone"); setTimeout(() => el.remove(), 1200); };
+  $("#inBtn").addEventListener("click", fin);
+  if(reduced){ fin(); return; }
+  const w = $("#warp"), x = w.getContext("2d"), W = w.width = innerWidth, H = w.height = innerHeight;
+  const P = Array.from({length:500}, () => ({a:Math.random() * 6.283, r:Math.random() * Math.max(W, H) * .6, v:.5 + Math.random() * 2}));
+  const t0 = performance.now();
+  (function f(t){ if(done) return; const k = Math.min(1, (t - t0) / 2200), sp = 1 + k * k * 30;
+    x.fillStyle = "rgba(6,10,29,.35)"; x.fillRect(0, 0, W, H);
+    for(const p of P){ const r0 = p.r; p.r += p.v * sp; if(p.r > Math.max(W, H) * .75){ p.r = Math.random() * 40; } const c = Math.cos(p.a), s2 = Math.sin(p.a);
+      x.strokeStyle = `rgba(236,230,255,${Math.min(1, p.r / 300)})`; x.lineWidth = 1 + k; x.beginPath(); x.moveTo(W / 2 + c * r0, H / 2 + s2 * r0); x.lineTo(W / 2 + c * p.r, H / 2 + s2 * p.r); x.stroke(); }
+    requestAnimationFrame(f); })(t0);
+  setTimeout(fin, 3600);
+})();
+
+/* Paralaje suave del escenario */
+document.querySelector(".stage").addEventListener("pointermove", e => { if(reduced) return; const r = e.currentTarget.getBoundingClientRect(), dx = (e.clientX - r.left) / r.width - .5, dy = (e.clientY - r.top) / r.height - .5;
+  document.querySelector(".water span").style.transform = `translate(${dx * -24}px, ${dy * -14}px)`; });
+
+/* ================= ARRANQUE ================= */
+sizeStars(); sizePlanet(); sizeOrbit(); sizeOrr();
+const desdeHash = B.findIndex(b => "#" + b.id === location.hash);
+select(desdeHash >= 0 ? desdeHash : B.findIndex(b => b.id === "saturno"), true);
+renderConst(); renderCmp(); renderEdad(); renderViaje(); nuevoQuiz(); drawFase();
+let last = 0;
+function loop(t){
+  const dt = Math.min(50, t - last); last = t;
+  if(!drag){ if(Math.abs(vel) > .00002){ rotOff += vel; vel *= .94; } else if(!reduced) rotOff += spin(B[cur]) * dt; }
+  drawStars(t); drawPlanet(); drawOrbit(t);
+  if(playing && !oDrag && orrVisible) simT += speed * 864e5 * dt / 1000;
+  if(orrVisible){ drawOrr(); if(oSel && playing && (t - (window.__oc || 0)) > 400){ window.__oc = t; oCard(); } }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
